@@ -166,6 +166,7 @@
 \bool_new:N \l__plumber_caption_bool
 \bool_new:N \l__plumber_closed_draw_bool
 \bool_new:N \l__plumber_error_bool
+\bool_new:N \l__plumber_item_error_bool
 \bool_new:N \l__plumber_mirror_bool
 \bool_new:N \l__plumber_first_bool
 \bool_new:N \l__plumber_layer_names_bool
@@ -373,8 +374,10 @@
     \clist_clear:N \l__plumber_layer_clist
     \int_zero:N \l__plumber_a_int
     \int_zero:N \l__plumber_b_int
+    \bool_set_false:N \l__plumber_item_error_bool
     \clist_map_inline:nn {#2} { \__plumber_parse_item:n {##1} }
-    \tl_if_blank:nF {#1}
+    \bool_lazy_or:nnF
+      { \tl_if_blank_p:n {#1} } { \l__plumber_item_error_bool }
       {
         \exp_args:NNe \regex_extract_once:NnNTF \c__plumber_arity_regex
           { \tl_to_str:n {#1} } \l__plumber_match_seq
@@ -440,12 +443,14 @@
           }
           {
             \bool_set_true:N \l__plumber_error_bool
+            \bool_set_true:N \l__plumber_item_error_bool
             \msg_error:nnVe { plumber } { unknown-generator }
               \l__plumber_name_tl { \int_use:N \l__plumber_layer_int }
           }
       }
       {
         \bool_set_true:N \l__plumber_error_bool
+        \bool_set_true:N \l__plumber_item_error_bool
         \msg_error:nnne { plumber } { bad-item } {#1}
           { \int_use:N \l__plumber_layer_int }
       }
@@ -1891,6 +1896,10 @@
     \bool_if:NTF \l__plumber_error_bool
       {
         \str_gclear:N \g__plumber_nf_str
+        \int_gzero:N \g__plumber_components_int
+        \int_gzero:N \g__plumber_closed_int
+        \int_gzero:N \g__plumber_genus_int
+        \int_gzero:N \g__plumber_euler_int
         \__plumber_emit:n { \exp_not:N \node [ pl~error ] ~ at ~ (0,0) { ?? } ; }
       }
       {
