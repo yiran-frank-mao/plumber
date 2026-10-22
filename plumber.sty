@@ -1210,6 +1210,7 @@
     \__plumber_counts:
     \__plumber_layout:
     \__plumber_extent:
+    \__plumber_compact_trim:
     \seq_map_indexed_inline:Nn \l__plumber_layers_seq
       { \__plumber_draw_layer:nn {##1} {##2} }
     \__plumber_draw_seams:
@@ -1237,6 +1238,18 @@
       }
     \fp_add:Nn \l__plumber_off_fp
       { \__plumber_page_width: + \l__plumber_namewd_fp }
+    \__plumber_compact_trim:
+  }
+% A closed component drawn compactly starts and ends with a bare dome,
+% leaving empty space at both ends of its first and last layer.
+\cs_new_protected:Npn \__plumber_compact_trim:
+  {
+    \bool_lazy_and:nnT
+      { \l__plumber_compact_bool } { ! \l__plumber_vertical_bool }
+      {
+        \fp_sub:Nn \l__plumber_off_fp
+          { \l__plumber_L_fp - min ( \l__plumber_R_fp , 0.9 * \l__plumber_L_fp ) }
+      }
   }
 
 % ---------------------------------------------------------------------------
