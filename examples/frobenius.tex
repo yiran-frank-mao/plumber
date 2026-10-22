@@ -1,0 +1,122 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{amsmath}
+\usepackage{plumber}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+
+\newcommand\rel[1]{\par\medskip\textbf{#1}\par\smallskip}
+
+\begin{document}
+
+\begin{center}
+  \Large 2d TQFTs and commutative Frobenius algebras
+\end{center}
+
+The relations of $\mathbf{2Cob}$, written with \texttt{plumber}. Every
+equation is a chain of \verb|\PL| layers; the last column shows what
+\texttt{reduce} makes of the left-hand side.
+
+\rel{Associativity and unit}
+\[
+  \PL{3,2}{copant, id}\PL{2,1}{copant} = \PL{3,2}{id, copant}\PL{2,1}{copant}
+  \qquad
+  \PL{1,2}{unit, id}\PL{2,1}{copant} = \PL{1,1}{id} = \PL{1,2}{id, unit}\PL{2,1}{copant}
+\]
+
+\rel{Coassociativity and counit}
+\[
+  \PL{1,2}{pant}\PL{2,3}{pant, id} = \PL{1,2}{pant}\PL{2,3}{id, pant}
+  \qquad
+  \PL{1,2}{pant}\PL{2,1}{counit, id} = \PL{1,1}{id} = \PL{1,2}{pant}\PL{2,1}{id, counit}
+\]
+
+\rel{Frobenius relation}
+\[
+  \PL{2,3}{pant, id}\PL{3,2}{id, copant}
+  = \PL{2,1}{copant}\PL{1,2}{pant}
+  = \PL{2,3}{id, pant}\PL{3,2}{copant, id}
+  \qquad
+  \PL[reduce]{2,3}{pant, id}\PL{3,2}{id, copant}
+\]
+
+\rel{Commutativity and cocommutativity}
+\[
+  \PL{2,2}{swap}\PL{2,1}{copant} = \PL{2,1}{copant}
+  \qquad
+  \PL{1,2}{pant}\PL{2,2}{swap} = \PL{1,2}{pant}
+  \qquad
+  \PL{2,2}{swap}\PL{2,2}{swap} = \PL{2,2}{id^2}
+\]
+
+\rel{Naturality of the swap}
+\[
+  \PL{2,3}{pant, id}\PL{3,3}{id, swap}\PL{3,3}{swap, id}
+  = \PL{2,2}{swap}\PL{2,3}{id, pant}
+  \qquad
+  \PL[reduce]{2,3}{pant, id}\PL{3,3}{id, swap}\PL{3,3}{swap, id}
+\]
+
+\rel{Duality: the snake (zig-zag) identities}
+\[
+  \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
+  = \PL{1,3}{copair, id}\PL{3,1}{id, pair}
+  \qquad
+  \PL{2,0}{pair} = \PL{2,1}{copant}\PL{1,0}{counit}
+  \qquad
+  \PL{0,2}{copair} = \PL{0,1}{unit}\PL{1,2}{pant}
+\]
+
+\rel{Composites with crossings}
+\[
+  \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
+  = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
+  \quad
+  \PL{2,2}{iswap}\PL{2,4}{copair, id, id}\PL{4,4}{id, iswap, id}\PL{4,2}{pair, id, id}
+  = \PL[reduce]{2,2}{iswap}\PL{2,4}{copair, id, id}\PL{4,4}{id, iswap, id}\PL{4,2}{pair, id, id}
+\]
+
+\rel{Closed surfaces}
+\[
+  \PL{0,2}{copair}\PL{2,0}{pair}
+  = \PL[reduce]{0,2}{copair}\PL{2,0}{pair}
+  = \PL[reduce, closed=factor]{0,2}{copair}\PL{2,0}{pair}
+  = \dim Z(S^1)
+  \qquad
+  \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,1}{copant}\PL{1,2}{pant}\PL{2,1}{copant}\PL{1,0}{counit}
+  = \PL[reduce, closed=factor]{0,1}{unit}\PL{1,2}{pant}\PL{2,1}{copant}\PL{1,2}{pant}\PL{2,1}{copant}\PL{1,0}{counit}
+\]
+
+\newpage
+
+\begin{center}
+  \Large The same, read from top to bottom
+\end{center}
+
+\plset{vertical, length=1}
+
+\rel{Frobenius relation}
+\[
+  \PL{2,3}{pant, id}\PL{3,2}{id, copant}
+  = \PL{2,1}{copant}\PL{1,2}{pant}
+  = \PL{2,3}{id, pant}\PL{3,2}{copant, id}
+\]
+
+\rel{Unit, counit and snake identities}
+\[
+  \PL{1,2}{unit, id}\PL{2,1}{copant} = \PL{1,1}{id}
+  = \PL{1,2}{pant}\PL{2,1}{id, counit}
+  \qquad
+  \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
+\]
+
+\rel{A genus 2 surface with three inputs and two outputs, and its normal form}
+\[
+  \PL[names]{3,4}{pant, id, id}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+    \PL{2,3}{pant, id}\PL{3,2}{id, copant}\PL{2,3}{pant, id}\PL{3,2}{id, copant}
+  \;=\;
+  \PL[reduce, names]{3,4}{pant, id, id}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+    \PL{2,3}{pant, id}\PL{3,2}{id, copant}\PL{2,3}{pant, id}\PL{3,2}{id, copant}
+\]
+
+\end{document}
