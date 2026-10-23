@@ -1,0 +1,2096 @@
+% plumber.sty -- diagrams of 2d TQFT cobordisms (pipes) with TikZ
+%
+% Copyright (C) 2026
+% This work may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License, version 1.3c or later.
+%
+\NeedsTeXFormat{LaTeX2e}[2020/10/01]
+\RequirePackage{tikz}
+\ProvidesExplPackage{plumber}{2026/10/22}{1.0}
+  {Diagrams of 2d TQFT cobordisms}
+
+% ---------------------------------------------------------------------------
+% Variants and messages
+% ---------------------------------------------------------------------------
+\cs_generate_variant:Nn \prop_put:Nnn { Nee , Nen , Nne , NnV , NeV }
+\cs_generate_variant:Nn \prop_item:Nn { Ne , NV }
+\cs_generate_variant:Nn \prop_get:NnN { Ne }
+\prg_generate_conditional_variant:Nnn \prop_get:NnN { Ne , NV } { T , F , TF }
+\prg_generate_conditional_variant:Nnn \prop_if_in:Nn { Ne } { T , F , TF }
+\cs_generate_variant:Nn \seq_put_right:Nn { Ne }
+\cs_generate_variant:Nn \clist_put_right:Nn { Ne }
+\cs_generate_variant:Nn \clist_set:Nn { Ne }
+\cs_generate_variant:Nn \str_case:nn { V }
+\cs_generate_variant:Nn \msg_error:nnnn { nnVe , nnne }
+\cs_generate_variant:Nn \msg_error:nnnnnn { nneeee }
+
+\regex_const:Nn \c__plumber_item_regex
+  { \A \s* ([A-Za-z\'\-]+) \s* (?: \^ \s* \{? \s* ([0-9]+) \s* \}? )? \s* \Z }
+\regex_const:Nn \c__plumber_arity_regex
+  { \A \s* ([0-9]+) \s* [,;/] \s* ([0-9]+) \s* \Z }
+
+\msg_new:nnn { plumber } { unknown-generator }
+  {
+    Unknown~generator~`#1'~in~layer~#2.~
+    Known~generators:~id,~pant,~copant,~unit,~counit,~swap,~iswap,~
+    pair,~copair~(aliases:~cyl,~pants,~copants,~birth,~death,~
+    twist,~ev,~coev).~Write~`id^3'~for~three~copies.
+  }
+\msg_new:nnn { plumber } { bad-item }
+  {
+    Cannot~read~`#1'~in~layer~#2.~
+    Write~a~generator~name,~optionally~followed~by~`^k'~(k~copies).
+  }
+\msg_new:nnn { plumber } { bad-arity }
+  {
+    The~first~argument~of~layer~#2~must~be~`m,n'~(numbers~of~input~and~
+    output~circles)~or~empty,~not~`#1'.
+  }
+\msg_new:nnn { plumber } { arity-mismatch }
+  {
+    Layer~#1~is~declared~as~`#2',~but~its~generators~have~
+    #3~input~and~#4~output~circles.
+  }
+\msg_new:nnn { plumber } { seam-mismatch }
+  {
+    Cannot~compose:~layer~#1~ends~with~#2~circles~but~layer~#3~starts~
+    with~#4.
+  }
+\msg_new:nnn { plumber } { standalone-formula }
+  {
+    A~diagram~is~used~in~a~formula~that~the~`standalone'~class~does~not~
+    turn~into~a~page:~with~its~`tikz'~option~only~TikZ~pictures,~
+    \iow_char:N\\[...\iow_char:N\\]~and~\iow_char:N\\(...\iow_char:N\\)~
+    become~(cropped)~pages.~Write~the~formula~with~
+    \iow_char:N\\[...\iow_char:N\\]~or~\iow_char:N\\(...\iow_char:N\\),~
+    or~use~\iow_char:N\\documentclass[varwidth]{standalone}~instead.
+  }
+
+% ---------------------------------------------------------------------------
+% Generators
+%
+% Every generator has a number of input and output circles, an Euler
+% characteristic, and a mirror image (the same surface read backwards).
+% ---------------------------------------------------------------------------
+\prop_const_from_keyval:Nn \c__plumber_in_prop
+  {
+    id = 1 , pant = 1 , copant = 2 , unit = 0 , counit = 1 ,
+    swap = 2 , iswap = 2 , pair = 2 , copair = 0 ,
+  }
+\prop_const_from_keyval:Nn \c__plumber_out_prop
+  {
+    id = 1 , pant = 2 , copant = 1 , unit = 1 , counit = 0 ,
+    swap = 2 , iswap = 2 , pair = 0 , copair = 2 ,
+  }
+\prop_const_from_keyval:Nn \c__plumber_chi_prop
+  {
+    id = 0 , pant = -1 , copant = -1 , unit = 1 , counit = 1 ,
+    swap = 0 , iswap = 0 , pair = 0 , copair = 0 ,
+  }
+\prop_const_from_keyval:Nn \c__plumber_mirror_prop
+  {
+    id = id , pant = copant , copant = pant , unit = counit ,
+    counit = unit , swap = swap , iswap = iswap , pair = copair ,
+    copair = pair ,
+  }
+\prop_const_from_keyval:Nn \c__plumber_alias_prop
+  {
+    id = id , pant = pant , copant = copant , unit = unit ,
+    counit = counit , swap = swap , iswap = iswap , pair = pair ,
+    copair = copair ,
+    cyl = id , cylinder = id , pants = pant , copants = copant ,
+    birth = unit , death = counit , twist = swap , itwist = iswap ,
+    ev = pair , coev = copair ,
+  }
+
+% ---------------------------------------------------------------------------
+% Variables
+% ---------------------------------------------------------------------------
+\int_new:N \l__plumber_layer_int
+\int_new:N \l__plumber_a_int
+\int_new:N \l__plumber_b_int
+\int_new:N \l__plumber_prev_int
+\int_new:N \l__plumber_N_int
+\int_new:N \l__plumber_i_int
+\int_new:N \l__plumber_j_int
+\int_new:N \l__plumber_r_int
+\int_new:N \l__plumber_w_int
+\int_new:N \l__plumber_len_int
+\int_new:N \l__plumber_idx_int
+\int_new:N \l__plumber_out_int
+\int_new:N \l__plumber_m_int
+\int_new:N \l__plumber_n_int
+\int_new:N \l__plumber_chi_int
+\int_new:N \l__plumber_genus_int
+\int_new:N \l__plumber_swaps_int
+\int_new:N \l__plumber_quiet_int
+\int_new:N \l__plumber_parity_int
+\int_new:N \l__plumber_M_int
+\int_new:N \l__plumber_H_int
+\int_new:N \l__plumber_S_int
+\int_new:N \l__plumber_smooth_int
+\int_new:N \g__plumber_components_int
+\int_new:N \g__plumber_genus_int
+\int_new:N \g__plumber_euler_int
+\int_new:N \g__plumber_closed_int
+
+\fp_new:N \l__plumber_d_fp
+\fp_new:N \l__plumber_R_fp
+\fp_new:N \l__plumber_L_fp
+\fp_new:N \l__plumber_e_fp
+\fp_new:N \l__plumber_persp_fp
+\fp_new:N \l__plumber_gap_fp
+\fp_new:N \l__plumber_scale_fp
+\fp_new:N \l__plumber_crotch_fp
+\fp_new:N \l__plumber_T_fp
+\fp_new:N \l__plumber_off_fp
+\fp_new:N \l__plumber_smin_fp
+\fp_new:N \l__plumber_smax_fp
+\fp_new:N \l__plumber_wd_fp
+\fp_new:N \l__plumber_namewd_fp
+\fp_new:N \l__plumber_mid_fp
+\fp_new:N \l__plumber_ro_fp
+\fp_new:N \l__plumber_ri_fp
+\fp_new:N \l__plumber_Do_fp
+\fp_new:N \l__plumber_Di_fp
+\fp_new:N \l__plumber_h_fp
+\fp_new:N \l__plumber_key_fp
+\fp_const:Nn \c__plumber_kappa_fp { 0.5523 }
+\fp_const:Nn \c__plumber_free_fp { 0.25 }
+
+\bool_new:N \l__plumber_vertical_bool
+\bool_new:N \l__plumber_reverse_bool
+\bool_new:N \l__plumber_reduce_bool
+\bool_new:N \l__plumber_seams_bool
+\bool_new:N \l__plumber_names_bool
+\bool_new:N \l__plumber_caption_bool
+\bool_new:N \l__plumber_closed_draw_bool
+\bool_new:N \l__plumber_error_bool
+\bool_new:N \l__plumber_item_error_bool
+\bool_new:N \l__plumber_mirror_bool
+\bool_new:N \l__plumber_first_bool
+\bool_new:N \l__plumber_layer_names_bool
+\bool_new:N \g__plumber_chain_bool
+\bool_new:N \l__plumber_star_bool
+\bool_new:N \l__plumber_compact_bool
+
+\tl_new:N \l__plumber_draw_tl
+\tl_new:N \l__plumber_names_tl
+\tl_new:N \l__plumber_tikz_tl
+\tl_new:N \l__plumber_baseline_tl
+\tl_new:N \l__plumber_separator_tl
+\tl_new:N \l__plumber_opts_tl
+\tl_new:N \l__plumber_name_tl
+\tl_new:N \l__plumber_count_tl
+\tl_new:N \l__plumber_canon_tl
+\tl_new:N \l__plumber_g_tl
+\tl_new:N \l__plumber_last_tl
+\tl_new:N \l__plumber_tmp_tl
+\tl_new:N \l__plumber_sig_tl
+\tl_new:N \l__plumber_tmpb_tl
+\tl_new:N \l__plumber_ta_tl
+\tl_new:N \l__plumber_tb_tl
+\tl_new:N \l__plumber_pa_tl
+\tl_new:N \l__plumber_pb_tl
+\tl_new:N \l__plumber_qa_tl
+\tl_new:N \l__plumber_qb_tl
+\tl_new:N \l__plumber_x_tl
+\tl_new:N \l__plumber_y_tl
+\tl_new:N \l__plumber_fx_tl
+\tl_new:N \l__plumber_fy_tl
+\tl_new:N \l__plumber_sa_tl
+\tl_new:N \l__plumber_sb_tl
+\tl_new:N \l__plumber_wa_tl
+\tl_new:N \l__plumber_wb_tl
+\tl_new:N \l__plumber_na_tl
+\tl_new:N \l__plumber_nb_tl
+\tl_new:N \l__plumber_z_tl
+\tl_new:N \l__plumber_main_tl
+\tl_new:N \l__plumber_coeff_tl
+\tl_new:N \l__plumber_expr_tl
+\tl_new:N \l__plumber_word_tl
+\tl_new:N \l__plumber_ops_tl
+\str_new:N \l__plumber_nf_str
+\str_new:N \g__plumber_nf_str
+
+\seq_new:N \l__plumber_layers_seq
+\seq_new:N \l__plumber_saved_seq
+\seq_new:N \l__plumber_match_seq
+\seq_new:N \l__plumber_pred_seq
+\seq_new:N \l__plumber_predw_seq
+\seq_new:N \l__plumber_fpred_seq
+\seq_new:N \l__plumber_fw_seq
+\seq_new:N \l__plumber_ideal_seq
+\seq_new:N \l__plumber_weight_seq
+\seq_new:N \l__plumber_bs_seq
+\seq_new:N \l__plumber_bw_seq
+\seq_new:N \l__plumber_bn_seq
+\seq_new:N \l__plumber_pieces_seq
+\seq_new:N \l__plumber_roots_seq
+\seq_new:N \l__plumber_open_seq
+\seq_new:N \l__plumber_closed_seq
+\seq_new:N \l__plumber_perm_seq
+
+\clist_new:N \l__plumber_layer_clist
+\clist_new:N \l__plumber_tmp_clist
+\clist_new:N \l__plumber_src_clist
+\clist_new:N \l__plumber_gens_clist
+\clist_new:N \l__plumber_inpos_clist
+\clist_new:N \l__plumber_outpos_clist
+\clist_new:N \l__plumber_list_clist
+
+\prop_new:N \l__plumber_count_prop
+\prop_new:N \l__plumber_pos_prop
+\prop_new:N \l__plumber_parent_prop
+\prop_new:N \l__plumber_chi_prop
+\prop_new:N \l__plumber_cin_prop
+\prop_new:N \l__plumber_cout_prop
+\prop_new:N \l__plumber_key_prop
+\prop_new:N \l__plumber_rank_prop
+\prop_new:N \l__plumber_arr_prop
+\prop_new:N \l__plumber_ca_prop
+\prop_new:N \l__plumber_cb_prop
+\prop_new:N \l__plumber_cg_prop
+\prop_new:N \l__plumber_symbols_prop
+
+\box_new:N \l__plumber_tmp_box
+
+% ---------------------------------------------------------------------------
+% Options
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_closed_value:n #1 { Z ( \Sigma \c_math_subscript_token {#1} ) }
+
+\keys_define:nn { plumber }
+  {
+    orientation .choice: ,
+    orientation / horizontal .code:n =
+      \bool_set_false:N \l__plumber_vertical_bool ,
+    orientation / vertical .code:n =
+      \bool_set_true:N \l__plumber_vertical_bool ,
+    horizontal .meta:n = { orientation = horizontal } ,
+    horizontal .value_forbidden:n = true ,
+    vertical .meta:n = { orientation = vertical } ,
+    vertical .value_forbidden:n = true ,
+    reverse .bool_set:N = \l__plumber_reverse_bool ,
+    reverse .default:n = true ,
+
+    reduce .bool_set:N = \l__plumber_reduce_bool ,
+    reduce .default:n = true ,
+    closed .choice: ,
+    closed / draw .code:n = \bool_set_true:N \l__plumber_closed_draw_bool ,
+    closed / factor .code:n = \bool_set_false:N \l__plumber_closed_draw_bool ,
+    closed~value .code:n =
+      \cs_set:Npn \__plumber_closed_value:n ##1 {#1} ,
+
+    seams .bool_set:N = \l__plumber_seams_bool ,
+    seams .default:n = true ,
+    names .bool_set:N = \l__plumber_names_bool ,
+    names .default:n = true ,
+    symbols .code:n =
+      \prop_put_from_keyval:Nn \l__plumber_symbols_prop {#1} ,
+    separator .tl_set:N = \l__plumber_separator_tl ,
+    list .clist_set:N = \l__plumber_list_clist ,
+
+    circle~sep .fp_set:N = \l__plumber_d_fp ,
+    radius .fp_set:N = \l__plumber_R_fp ,
+    length .fp_set:N = \l__plumber_L_fp ,
+    perspective .fp_set:N = \l__plumber_persp_fp ,
+    crotch .fp_set:N = \l__plumber_crotch_fp ,
+    gap .fp_set:N = \l__plumber_gap_fp ,
+    smooth .int_set:N = \l__plumber_smooth_int ,
+
+    scale .code:n =
+      {
+        \fp_set:Nn \l__plumber_scale_fp {#1}
+        \tl_put_right:Nn \l__plumber_tikz_tl { , scale = #1 }
+      } ,
+    baseline .tl_set:N = \l__plumber_baseline_tl ,
+    tikz .code:n = \tl_put_right:Nn \l__plumber_tikz_tl { , #1 } ,
+    fill .code:n =
+      \tikzset { pl~surface/.append~style = { fill = #1 } } ,
+    surface~style .code:n =
+      \tikzset { pl~surface/.append~style = {#1} } ,
+    outline~style .code:n =
+      \tikzset { pl~outline/.append~style = {#1} } ,
+    seam~style .code:n =
+      \tikzset { pl~seam/.append~style = {#1} } ,
+    hidden~style .code:n =
+      \tikzset { pl~hidden/.append~style = {#1} } ,
+    boundary~style .code:n =
+      \tikzset { pl~boundary/.append~style = {#1} } ,
+  }
+
+\keys_set:nn { plumber }
+  {
+    horizontal ,
+    reverse = false ,
+    reduce = false ,
+    closed = draw ,
+    seams = true ,
+    names = false ,
+    separator = ,
+    list = { id , pant , copant , unit , counit , swap , pair , copair } ,
+    circle~sep = 1 ,
+    radius = 0.3 ,
+    length = 1.2 ,
+    perspective = 0.3 ,
+    crotch = 0.6 ,
+    gap = 0.4 ,
+    smooth = 4 ,
+    baseline = -0.5ex ,
+  }
+\fp_set:Nn \l__plumber_scale_fp { 1 }
+\prop_put_from_keyval:Nn \l__plumber_symbols_prop
+  {
+    id = \mathrm{id} , pant = \Delta , copant = \mu , unit = \eta ,
+    counit = \varepsilon , swap = \sigma , iswap = \sigma^{-1} ,
+    pair = \beta , copair = \gamma ,
+  }
+
+% ---------------------------------------------------------------------------
+% Reading layers:  \PL{2,3}{pant, id}
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_in:n #1 { \prop_item:Ne \c__plumber_in_prop {#1} }
+\cs_new:Npn \__plumber_out:n #1 { \prop_item:Ne \c__plumber_out_prop {#1} }
+\cs_new:Npn \__plumber_in_plus:n #1 { + \__plumber_in:n {#1} }
+\cs_new:Npn \__plumber_out_plus:n #1 { + \__plumber_out:n {#1} }
+% Number of input / output circles of a layer (a clist of generators).
+\cs_new:Npn \__plumber_layer_in:n #1
+  { \int_eval:n { 0 \clist_map_function:nN {#1} \__plumber_in_plus:n } }
+\cs_new:Npn \__plumber_layer_out:n #1
+  { \int_eval:n { 0 \clist_map_function:nN {#1} \__plumber_out_plus:n } }
+
+\cs_new_protected:Npn \__plumber_start:
+  {
+    \seq_clear:N \l__plumber_layers_seq
+    \int_zero:N \l__plumber_layer_int
+    \int_zero:N \l__plumber_prev_int
+    \bool_set_false:N \l__plumber_error_bool
+  }
+
+\cs_new_protected:Npn \__plumber_add_layer:nn #1#2
+  {
+    \int_incr:N \l__plumber_layer_int
+    \clist_clear:N \l__plumber_layer_clist
+    \int_zero:N \l__plumber_a_int
+    \int_zero:N \l__plumber_b_int
+    \bool_set_false:N \l__plumber_item_error_bool
+    \clist_map_inline:nn {#2} { \__plumber_parse_item:n {##1} }
+    \bool_lazy_or:nnF
+      { \tl_if_blank_p:n {#1} } { \l__plumber_item_error_bool }
+      {
+        \exp_args:NNe \regex_extract_once:NnNTF \c__plumber_arity_regex
+          { \tl_to_str:n {#1} } \l__plumber_match_seq
+          {
+            \bool_lazy_or:nnT
+              {
+                \int_compare_p:n
+                  { \seq_item:Nn \l__plumber_match_seq { 2 } != \l__plumber_a_int }
+              }
+              {
+                \int_compare_p:n
+                  { \seq_item:Nn \l__plumber_match_seq { 3 } != \l__plumber_b_int }
+              }
+              {
+                \bool_set_true:N \l__plumber_error_bool
+                \msg_error:nneeee { plumber } { arity-mismatch }
+                  { \int_use:N \l__plumber_layer_int }
+                  { \tl_to_str:n {#1} }
+                  { \int_use:N \l__plumber_a_int }
+                  { \int_use:N \l__plumber_b_int }
+              }
+          }
+          {
+            \bool_set_true:N \l__plumber_error_bool
+            \msg_error:nnne { plumber } { bad-arity } {#1}
+              { \int_use:N \l__plumber_layer_int }
+          }
+      }
+    \int_compare:nNnT \l__plumber_layer_int > 1
+      {
+        \int_compare:nNnF \l__plumber_prev_int = \l__plumber_a_int
+          {
+            \bool_set_true:N \l__plumber_error_bool
+            \msg_error:nneeee { plumber } { seam-mismatch }
+              { \int_eval:n { \l__plumber_layer_int - 1 } }
+              { \int_use:N \l__plumber_prev_int }
+              { \int_use:N \l__plumber_layer_int }
+              { \int_use:N \l__plumber_a_int }
+          }
+      }
+    \int_set_eq:NN \l__plumber_prev_int \l__plumber_b_int
+    \seq_put_right:NV \l__plumber_layers_seq \l__plumber_layer_clist
+  }
+
+\cs_new_protected:Npn \__plumber_parse_item:n #1
+  {
+    \exp_args:NNe \regex_extract_once:NnNTF \c__plumber_item_regex
+      { \tl_to_str:n {#1} } \l__plumber_match_seq
+      {
+        \tl_set:Ne \l__plumber_name_tl { \seq_item:Nn \l__plumber_match_seq { 2 } }
+        \tl_set:Ne \l__plumber_count_tl { \seq_item:Nn \l__plumber_match_seq { 3 } }
+        \tl_if_empty:NT \l__plumber_count_tl
+          { \tl_set:Nn \l__plumber_count_tl { 1 } }
+        \prop_get:NVNTF \c__plumber_alias_prop \l__plumber_name_tl
+          \l__plumber_canon_tl
+          {
+            \prg_replicate:nn { \l__plumber_count_tl }
+              { \clist_put_right:NV \l__plumber_layer_clist \l__plumber_canon_tl }
+            \int_add:Nn \l__plumber_a_int
+              { \l__plumber_count_tl * \__plumber_in:n { \l__plumber_canon_tl } }
+            \int_add:Nn \l__plumber_b_int
+              { \l__plumber_count_tl * \__plumber_out:n { \l__plumber_canon_tl } }
+          }
+          {
+            \bool_set_true:N \l__plumber_error_bool
+            \bool_set_true:N \l__plumber_item_error_bool
+            \msg_error:nnVe { plumber } { unknown-generator }
+              \l__plumber_name_tl { \int_use:N \l__plumber_layer_int }
+          }
+      }
+      {
+        \bool_set_true:N \l__plumber_error_bool
+        \bool_set_true:N \l__plumber_item_error_bool
+        \msg_error:nnne { plumber } { bad-item } {#1}
+          { \int_use:N \l__plumber_layer_int }
+      }
+  }
+
+% Number of circles on every seam: seam 0 is the input, seam k the output of
+% layer k.
+\cs_new_protected:Npn \__plumber_counts:
+  {
+    \prop_clear:N \l__plumber_count_prop
+    \int_set:Nn \l__plumber_N_int { \seq_count:N \l__plumber_layers_seq }
+    \prop_put:Nnn \l__plumber_count_prop { 0 } { 0 }
+    \seq_map_indexed_inline:Nn \l__plumber_layers_seq
+      {
+        \int_compare:nNnT {##1} = 1
+          { \prop_put:Nne \l__plumber_count_prop { 0 } { \__plumber_layer_in:n {##2} } }
+        \prop_put:Nne \l__plumber_count_prop {##1} { \__plumber_layer_out:n {##2} }
+      }
+  }
+\cs_new:Npn \__plumber_count:n #1
+  { \prop_item:Ne \l__plumber_count_prop { \int_eval:n {#1} } }
+
+% ---------------------------------------------------------------------------
+% Layout
+%
+% Circles on a seam sit at positions (in units of `circle sep') that are
+% strictly increasing with gaps of at least 1.  Each layer predicts where the
+% circles on the neighbouring seams would like to be (an id keeps its
+% position, a pair of pants puts its legs at +-1/2 around the waist, ...);
+% the positions are the best fit to these wishes under the ordering
+% constraints, found by isotonic regression (pool adjacent violators).
+% A few forward/backward sweeps let both neighbours have their say.
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_src:n #1
+  { \clist_item:Nn \l__plumber_src_clist { \l__plumber_idx_int + #1 } }
+
+\cs_new_protected:Npn \__plumber_push:nn #1#2
+  {
+    \tl_set:Ne \l__plumber_last_tl { \fp_eval:n {#1} }
+    \seq_put_right:NV \l__plumber_pred_seq \l__plumber_last_tl
+    \seq_put_right:Ne \l__plumber_predw_seq { \fp_eval:n {#2} }
+  }
+% Generators without input circles have no natural place: put them next to
+% the previous output, or just before the next input.
+\cs_new_protected:Npn \__plumber_push_free:n #1
+  {
+    \tl_if_empty:NTF \l__plumber_last_tl
+      {
+        \int_compare:nNnTF \l__plumber_idx_int > \l__plumber_len_int
+          {
+            \int_compare:nNnTF \l__plumber_len_int > 0
+              {
+                \tl_set:Ne \l__plumber_tmp_tl
+                  { \clist_item:Nn \l__plumber_src_clist { \l__plumber_len_int } }
+              }
+              { \tl_set:Nn \l__plumber_tmp_tl { 0 } }
+          }
+          {
+            \tl_set:Ne \l__plumber_tmp_tl
+              { \fp_eval:n { \__plumber_src:n { 0 } - #1 } }
+          }
+      }
+      { \tl_set:Ne \l__plumber_tmp_tl { \fp_eval:n { \l__plumber_last_tl + 1 } } }
+    \int_step_inline:nnn { 0 } { #1 - 1 }
+      {
+        \__plumber_push:nn { \l__plumber_tmp_tl + ##1 }
+          { \c__plumber_free_fp }
+      }
+  }
+
+% Predictions for seam #1 from seam #1-1 (#2 = f) or from seam #1+1 (#2 = b).
+\cs_new_protected:Npn \__plumber_predict:nn #1#2
+  {
+    \seq_clear:N \l__plumber_pred_seq
+    \seq_clear:N \l__plumber_predw_seq
+    \str_if_eq:nnTF {#2} { f }
+      {
+        \prop_get:NeN \l__plumber_pos_prop { \int_eval:n { #1 - 1 } }
+          \l__plumber_src_clist
+        \clist_set:Ne \l__plumber_gens_clist
+          { \seq_item:Nn \l__plumber_layers_seq {#1} }
+        \bool_set_false:N \l__plumber_mirror_bool
+      }
+      {
+        \prop_get:NeN \l__plumber_pos_prop { \int_eval:n { #1 + 1 } }
+          \l__plumber_src_clist
+        \clist_set:Ne \l__plumber_gens_clist
+          { \seq_item:Nn \l__plumber_layers_seq { #1 + 1 } }
+        \bool_set_true:N \l__plumber_mirror_bool
+      }
+    \int_set:Nn \l__plumber_len_int { \clist_count:N \l__plumber_src_clist }
+    \int_set:Nn \l__plumber_idx_int { 1 }
+    \tl_clear:N \l__plumber_last_tl
+    \clist_map_inline:Nn \l__plumber_gens_clist
+      {
+        \bool_if:NTF \l__plumber_mirror_bool
+          { \tl_set:Ne \l__plumber_g_tl { \prop_item:Nn \c__plumber_mirror_prop {##1} } }
+          { \tl_set:Nn \l__plumber_g_tl {##1} }
+        \str_case:Vn \l__plumber_g_tl
+          {
+            { id } { \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 } }
+            { pant }
+              {
+                \__plumber_push:nn { \__plumber_src:n { 0 } - 0.5 } { 1 }
+                \__plumber_push:nn { \__plumber_src:n { 0 } + 0.5 } { 1 }
+              }
+            { copant }
+              {
+                \__plumber_push:nn
+                  { ( \__plumber_src:n { 0 } + \__plumber_src:n { 1 } ) / 2 } { 1 }
+              }
+            { swap }
+              {
+                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
+                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
+              }
+            { iswap }
+              {
+                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
+                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
+              }
+            { unit } { \__plumber_push_free:n { 1 } }
+            { copair } { \__plumber_push_free:n { 2 } }
+          }
+        \int_add:Nn \l__plumber_idx_int { \__plumber_in:n { \l__plumber_g_tl } }
+      }
+  }
+
+% Place the circles of seam #1 using the predictions from the previous
+% (#2 = true) and/or the next (#3 = true) layer.
+\cs_new_protected:Npn \__plumber_place:nnn #1#2#3
+  {
+    \seq_clear:N \l__plumber_ideal_seq
+    \seq_clear:N \l__plumber_weight_seq
+    \bool_if:nT { #2 && \int_compare_p:nNn {#1} > 0 }
+      {
+        \__plumber_predict:nn {#1} { f }
+        \seq_set_eq:NN \l__plumber_ideal_seq \l__plumber_pred_seq
+        \seq_set_eq:NN \l__plumber_weight_seq \l__plumber_predw_seq
+      }
+    \bool_if:nT { #3 && \int_compare_p:nNn {#1} < \l__plumber_N_int }
+      {
+        \__plumber_predict:nn {#1} { b }
+        \seq_if_empty:NTF \l__plumber_ideal_seq
+          {
+            \seq_set_eq:NN \l__plumber_ideal_seq \l__plumber_pred_seq
+            \seq_set_eq:NN \l__plumber_weight_seq \l__plumber_predw_seq
+          }
+          {
+            \seq_set_eq:NN \l__plumber_fpred_seq \l__plumber_ideal_seq
+            \seq_set_eq:NN \l__plumber_fw_seq \l__plumber_weight_seq
+            \seq_clear:N \l__plumber_ideal_seq
+            \seq_clear:N \l__plumber_weight_seq
+            \seq_map_indexed_inline:Nn \l__plumber_fpred_seq
+              {
+                \tl_set:Ne \l__plumber_wa_tl { \seq_item:Nn \l__plumber_fw_seq {##1} }
+                \tl_set:Ne \l__plumber_wb_tl { \seq_item:Nn \l__plumber_predw_seq {##1} }
+                \seq_put_right:Ne \l__plumber_ideal_seq
+                  {
+                    \fp_eval:n
+                      {
+                        ( \l__plumber_wa_tl * ##2 + \l__plumber_wb_tl *
+                          \seq_item:Nn \l__plumber_pred_seq {##1} )
+                        / ( \l__plumber_wa_tl + \l__plumber_wb_tl )
+                      }
+                  }
+                \seq_put_right:Ne \l__plumber_weight_seq
+                  { \fp_eval:n { \l__plumber_wa_tl + \l__plumber_wb_tl } }
+              }
+          }
+      }
+    \__plumber_pava:
+    \prop_put:NeV \l__plumber_pos_prop { \int_eval:n {#1} } \l__plumber_tmp_clist
+  }
+
+% Isotonic regression with minimal gap 1: minimise sum w_i (y_i - x_i)^2
+% subject to y_{i+1} >= y_i + 1.  With z_i = y_i - i this asks for a
+% non-decreasing z, which is what pool-adjacent-violators computes.
+\cs_new_protected:Npn \__plumber_pava:
+  {
+    \seq_clear:N \l__plumber_bs_seq
+    \seq_clear:N \l__plumber_bw_seq
+    \seq_clear:N \l__plumber_bn_seq
+    \seq_map_indexed_inline:Nn \l__plumber_ideal_seq
+      {
+        \tl_set:Ne \l__plumber_wb_tl { \seq_item:Nn \l__plumber_weight_seq {##1} }
+        \seq_put_right:Ne \l__plumber_bs_seq
+          { \fp_eval:n { \l__plumber_wb_tl * ( ##2 - ##1 ) } }
+        \seq_put_right:NV \l__plumber_bw_seq \l__plumber_wb_tl
+        \seq_put_right:Nn \l__plumber_bn_seq { 1 }
+        \__plumber_pava_merge:
+      }
+    \clist_clear:N \l__plumber_tmp_clist
+    \int_zero:N \l__plumber_i_int
+    \seq_map_indexed_inline:Nn \l__plumber_bs_seq
+      {
+        \tl_set:Ne \l__plumber_z_tl
+          { \fp_eval:n { ##2 / ( \seq_item:Nn \l__plumber_bw_seq {##1} ) } }
+        \prg_replicate:nn { \seq_item:Nn \l__plumber_bn_seq {##1} }
+          {
+            \int_incr:N \l__plumber_i_int
+            \clist_put_right:Ne \l__plumber_tmp_clist
+              { \fp_eval:n { round ( \l__plumber_z_tl + \l__plumber_i_int , 5 ) } }
+          }
+      }
+  }
+\cs_new_protected:Npn \__plumber_pava_merge:
+  {
+    \int_compare:nNnT { \seq_count:N \l__plumber_bs_seq } > 1
+      {
+        \seq_pop_right:NN \l__plumber_bs_seq \l__plumber_sb_tl
+        \seq_pop_right:NN \l__plumber_bw_seq \l__plumber_wb_tl
+        \seq_pop_right:NN \l__plumber_bn_seq \l__plumber_nb_tl
+        \seq_get_right:NN \l__plumber_bs_seq \l__plumber_sa_tl
+        \seq_get_right:NN \l__plumber_bw_seq \l__plumber_wa_tl
+        \fp_compare:nNnTF
+          { \l__plumber_sa_tl / \l__plumber_wa_tl }
+          > { \l__plumber_sb_tl / \l__plumber_wb_tl + 1e-9 }
+          {
+            \seq_pop_right:NN \l__plumber_bs_seq \l__plumber_sa_tl
+            \seq_pop_right:NN \l__plumber_bw_seq \l__plumber_wa_tl
+            \seq_pop_right:NN \l__plumber_bn_seq \l__plumber_na_tl
+            \seq_put_right:Ne \l__plumber_bs_seq
+              { \fp_eval:n { \l__plumber_sa_tl + \l__plumber_sb_tl } }
+            \seq_put_right:Ne \l__plumber_bw_seq
+              { \fp_eval:n { \l__plumber_wa_tl + \l__plumber_wb_tl } }
+            \seq_put_right:Ne \l__plumber_bn_seq
+              { \int_eval:n { \l__plumber_na_tl + \l__plumber_nb_tl } }
+            \__plumber_pava_merge:
+          }
+          {
+            \seq_put_right:NV \l__plumber_bs_seq \l__plumber_sb_tl
+            \seq_put_right:NV \l__plumber_bw_seq \l__plumber_wb_tl
+            \seq_put_right:NV \l__plumber_bn_seq \l__plumber_nb_tl
+          }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_layout:
+  {
+    \prop_clear:N \l__plumber_pos_prop
+    \clist_clear:N \l__plumber_tmp_clist
+    \int_step_inline:nn { \__plumber_count:n { 0 } }
+      { \clist_put_right:Nn \l__plumber_tmp_clist {##1} }
+    \prop_put:NnV \l__plumber_pos_prop { 0 } \l__plumber_tmp_clist
+    \int_step_inline:nn { \l__plumber_N_int }
+      { \__plumber_place:nnn {##1} { \c_true_bool } { \c_false_bool } }
+    \__plumber_smooth:n { \l__plumber_smooth_int }
+  }
+% Back-and-forth sweeps, stopping early once the positions are stable.
+\cs_new_protected:Npn \__plumber_smooth:n #1
+  {
+    \int_compare:nNnT {#1} > 0
+      {
+        \tl_set:Ne \l__plumber_sig_tl { \__plumber_signature: }
+        \int_step_inline:nnnn { \l__plumber_N_int } { -1 } { 0 }
+          { \__plumber_place:nnn {##1} { \c_true_bool } { \c_true_bool } }
+        \int_step_inline:nnn { 0 } { \l__plumber_N_int }
+          { \__plumber_place:nnn {##1} { \c_true_bool } { \c_true_bool } }
+        \tl_set:Ne \l__plumber_tmp_tl { \__plumber_signature: }
+        \tl_if_eq:NNF \l__plumber_sig_tl \l__plumber_tmp_tl
+          { \__plumber_smooth:n { #1 - 1 } }
+      }
+  }
+\cs_new:Npn \__plumber_signature:
+  { \prop_map_function:NN \l__plumber_pos_prop \__plumber_signature:nn }
+\cs_new:Npn \__plumber_signature:nn #1#2 { #1 : #2 ; }
+
+% ---------------------------------------------------------------------------
+% Coordinates
+%
+% A factor is drawn in local coordinates (t, s) in cm: t runs along the
+% composition (0 <= t <= T), s across the circles.  These are mapped to the
+% page according to the options.  The viewer looks from the top (vertical)
+% or the left (horizontal): circles on that side of the picture are fully
+% visible, all others show their front half solid and their back half dashed.
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_x:nn #1#2
+  {
+    \l__plumber_off_fp +
+    \bool_if:NTF \l__plumber_vertical_bool
+      { (#2) - \l__plumber_smin_fp }
+      {
+        \bool_if:NTF \l__plumber_reverse_bool
+          { \l__plumber_T_fp - (#1) } { (#1) }
+      }
+  }
+\cs_new:Npn \__plumber_y:nn #1#2
+  {
+    \bool_if:NTF \l__plumber_vertical_bool
+      {
+        \bool_if:NTF \l__plumber_reverse_bool
+          { (#1) - \l__plumber_T_fp / 2 }
+          { \l__plumber_T_fp / 2 - (#1) }
+      }
+      { ( \l__plumber_smin_fp + \l__plumber_smax_fp ) / 2 - (#2) }
+  }
+\cs_new:Npn \__plumber_pt:nn #1#2
+  {
+    ( \fp_eval:n { round ( \__plumber_x:nn {#1} {#2} , 4 ) } ,
+      \fp_eval:n { round ( \__plumber_y:nn {#1} {#2} , 4 ) } )
+  }
+% Bezier segment (without its start point).
+\cs_new:Npn \__plumber_bez:nnnnnn #1#2#3#4#5#6
+  {
+    ~ .. ~ controls ~ \__plumber_pt:nn {#1} {#2} ~ and ~
+    \__plumber_pt:nn {#3} {#4} ~ .. ~ \__plumber_pt:nn {#5} {#6}
+  }
+% S-shaped segment from (#1, #2) to (#3, #4), tangent to the t direction.
+\cs_new:Npn \__plumber_scurve:nnnn #1#2#3#4
+  {
+    \__plumber_bez:nnnnnn
+      { ( (#1) + (#3) ) / 2 } {#2} { ( (#1) + (#3) ) / 2 } {#4} {#3} {#4}
+  }
+\cs_new_protected:Npn \__plumber_emit:n #1
+  { \tl_put_right:Ne \l__plumber_draw_tl {#1} }
+
+% ---------------------------------------------------------------------------
+% Generators.  The layer occupies ta <= t <= tb; pa, pb are the positions of
+% the input circles and qa, qb those of the output circles (in cm).  Points
+% are computed once (\__plumber_point:nnn) and then used both for the white
+% surface and for the outline.
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_R: { \l__plumber_R_fp }
+\clist_map_inline:nn
+  {
+    a , b , c , d , e , f , g , h , i , j , k , l ,
+    oa , ob , oc , od , oe , of , ia , ib , ic , id , ie , if
+  }
+  { \tl_new:c { l__plumber_pt_ #1 _tl } }
+\cs_new:Npn \__plumber_tm: { ( \l__plumber_ta_tl + \l__plumber_tb_tl ) / 2 }
+\cs_new_protected:Npn \__plumber_point:nnn #1#2#3
+  { \tl_set:ce { l__plumber_pt_ #1 _tl } { \__plumber_pt:nn {#2} {#3} } }
+\cs_new:Npn \__plumber_p:n #1 { \tl_use:c { l__plumber_pt_ #1 _tl } }
+% Bezier segment through the stored points #1, #2 to #3.
+\cs_new:Npn \__plumber_c:nnn #1#2#3
+  {
+    ~ .. ~ controls ~ \__plumber_p:n {#1} ~ and ~ \__plumber_p:n {#2}
+    ~ .. ~ \__plumber_p:n {#3}
+  }
+\cs_new_protected:Npn \__plumber_shape:nn #1#2
+  {
+    \__plumber_emit:n
+      {
+        \exp_not:N \fill [ pl~surface ] #1 -- cycle ;
+        \exp_not:N \draw [ pl~outline ] #2 ;
+      }
+  }
+
+% A tube from (ta, #1) to (tb, #2).
+\cs_new_protected:Npn \__plumber_band:nn #1#2
+  {
+    \__plumber_point:nnn { a } { \l__plumber_ta_tl } { #1 - \__plumber_R: }
+    \__plumber_point:nnn { b } { \__plumber_tm: } { #1 - \__plumber_R: }
+    \__plumber_point:nnn { c } { \__plumber_tm: } { #2 - \__plumber_R: }
+    \__plumber_point:nnn { d } { \l__plumber_tb_tl } { #2 - \__plumber_R: }
+    \__plumber_point:nnn { e } { \l__plumber_tb_tl } { #2 + \__plumber_R: }
+    \__plumber_point:nnn { f } { \__plumber_tm: } { #2 + \__plumber_R: }
+    \__plumber_point:nnn { g } { \__plumber_tm: } { #1 + \__plumber_R: }
+    \__plumber_point:nnn { h } { \l__plumber_ta_tl } { #1 + \__plumber_R: }
+    \__plumber_shape:nn
+      {
+        \__plumber_p:n { a } \__plumber_c:nnn { b } { c } { d }
+        -- \__plumber_p:n { e } \__plumber_c:nnn { f } { g } { h }
+      }
+      {
+        \__plumber_p:n { a } \__plumber_c:nnn { b } { c } { d } ~
+        \__plumber_p:n { h } \__plumber_c:nnn { g } { f } { e }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_draw_id:
+  { \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qa_tl } }
+% The tube drawn second passes in front.
+\cs_new_protected:Npn \__plumber_draw_swap:
+  {
+    \__plumber_band:nn { \l__plumber_pb_tl } { \l__plumber_qa_tl }
+    \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qb_tl }
+  }
+\cs_new_protected:Npn \__plumber_draw_iswap:
+  {
+    \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qb_tl }
+    \__plumber_band:nn { \l__plumber_pb_tl } { \l__plumber_qa_tl }
+  }
+
+% One circle (#1) at t = ta splitting into two (#2, #3) at t = tb, with the
+% crotch reaching to t = tb + #4.  The copant is the same picture read
+% backwards, see \__plumber_draw_copant:.
+\cs_new_protected:Npn \__plumber_trousers:nnnnnn #1#2#3#4#5#6
+  {
+    \__plumber_point:nnn { a } {#5} { #1 - \__plumber_R: }
+    \__plumber_point:nnn { b } { \__plumber_tm: } { #1 - \__plumber_R: }
+    \__plumber_point:nnn { c } { \__plumber_tm: } { #2 - \__plumber_R: }
+    \__plumber_point:nnn { d } {#6} { #2 - \__plumber_R: }
+    \__plumber_point:nnn { e } {#6} { #2 + \__plumber_R: }
+    \__plumber_point:nnn { f } { #6 + #4 } { #2 + \__plumber_R: }
+    \__plumber_point:nnn { g } { #6 + #4 } { #3 - \__plumber_R: }
+    \__plumber_point:nnn { h } {#6} { #3 - \__plumber_R: }
+    \__plumber_point:nnn { i } {#6} { #3 + \__plumber_R: }
+    \__plumber_point:nnn { j } { \__plumber_tm: } { #3 + \__plumber_R: }
+    \__plumber_point:nnn { k } { \__plumber_tm: } { #1 + \__plumber_R: }
+    \__plumber_point:nnn { l } {#5} { #1 + \__plumber_R: }
+    \__plumber_shape:nn
+      {
+        \__plumber_p:n { a } \__plumber_c:nnn { b } { c } { d }
+        -- \__plumber_p:n { e } \__plumber_c:nnn { f } { g } { h }
+        -- \__plumber_p:n { i } \__plumber_c:nnn { j } { k } { l }
+      }
+      {
+        \__plumber_p:n { a } \__plumber_c:nnn { b } { c } { d } ~
+        \__plumber_p:n { e } \__plumber_c:nnn { f } { g } { h } ~
+        \__plumber_p:n { l } \__plumber_c:nnn { k } { j } { i }
+      }
+  }
+\cs_new_protected:Npn \__plumber_draw_pant:
+  {
+    \__plumber_trousers:nnnnnn
+      { \l__plumber_pa_tl } { \l__plumber_qa_tl } { \l__plumber_qb_tl }
+      { - \l__plumber_crotch_fp * \l__plumber_L_fp }
+      { \l__plumber_ta_tl } { \l__plumber_tb_tl }
+  }
+\cs_new_protected:Npn \__plumber_draw_copant:
+  {
+    \__plumber_trousers:nnnnnn
+      { \l__plumber_qa_tl } { \l__plumber_pa_tl } { \l__plumber_pb_tl }
+      { \l__plumber_crotch_fp * \l__plumber_L_fp }
+      { \l__plumber_tb_tl } { \l__plumber_ta_tl }
+  }
+
+% Points #1a..#1f of half an ellipse with centre (#2 + #4, #3) and semi-axes
+% |#4| (along t) and #5 (along s), from s = #3 - #5 to s = #3 + #5.
+\cs_new_protected:Npn \__plumber_dome:nnnnn #1#2#3#4#5
+  {
+    \__plumber_point:nnn { #1 a }
+      { #2 + \c__plumber_kappa_fp * (#4) } { #3 - (#5) }
+    \__plumber_point:nnn { #1 b } { #2 + (#4) }
+      { #3 - \c__plumber_kappa_fp * (#5) }
+    \__plumber_point:nnn { #1 c } { #2 + (#4) } {#3}
+    \__plumber_point:nnn { #1 d } { #2 + (#4) }
+      { #3 + \c__plumber_kappa_fp * (#5) }
+    \__plumber_point:nnn { #1 e }
+      { #2 + \c__plumber_kappa_fp * (#4) } { #3 + (#5) }
+    \__plumber_point:nnn { #1 f } {#2} { #3 + (#5) }
+  }
+\cs_new:Npn \__plumber_dome_path:n #1
+  {
+    \__plumber_c:nnn { #1 a } { #1 b } { #1 c }
+    \__plumber_c:nnn { #1 d } { #1 e } { #1 f }
+  }
+
+% A disc on the circle at (#1, #2): a short tube from the seam t = #1 to
+% t = #1 + #3, closed by a hemisphere of height #4 (#3 and #4 have the same
+% sign).
+\cs_new_protected:Npn \__plumber_cap:nnnn #1#2#3#4
+  {
+    \__plumber_point:nnn { a } {#1} { #2 - \__plumber_R: }
+    \__plumber_point:nnn { b } { #1 + #3 } { #2 - \__plumber_R: }
+    \__plumber_dome:nnnnn { o } { #1 + #3 } {#2} {#4} { \__plumber_R: }
+    \__plumber_point:nnn { c } {#1} { #2 + \__plumber_R: }
+    \__plumber_shape:nn
+      {
+        \__plumber_p:n { a } -- \__plumber_p:n { b }
+        \__plumber_dome_path:n { o } -- \__plumber_p:n { c }
+      }
+      {
+        \__plumber_p:n { a } -- \__plumber_p:n { b }
+        \__plumber_dome_path:n { o } -- \__plumber_p:n { c }
+      }
+  }
+% Height of the hemisphere (\l__plumber_h_fp) and length of the tube below
+% it (\l__plumber_wd_fp); closed components in reduced form get no tube, so
+% that a sphere looks round.
+\cs_new_protected:Npn \__plumber_dome_height:
+  {
+    \fp_set:Nn \l__plumber_h_fp
+      { min ( \l__plumber_R_fp , 0.9 * \l__plumber_L_fp ) }
+    \bool_if:NTF \l__plumber_compact_bool
+      { \fp_zero:N \l__plumber_wd_fp }
+      {
+        \fp_set:Nn \l__plumber_wd_fp
+          { max ( 0 , 0.8 * \l__plumber_L_fp - \l__plumber_h_fp ) }
+      }
+  }
+\cs_new_protected:Npn \__plumber_draw_unit:
+  {
+    \__plumber_dome_height:
+    \__plumber_cap:nnnn { \l__plumber_tb_tl } { \l__plumber_qa_tl }
+      { - \l__plumber_wd_fp } { - \l__plumber_h_fp }
+  }
+\cs_new_protected:Npn \__plumber_draw_counit:
+  {
+    \__plumber_dome_height:
+    \__plumber_cap:nnnn { \l__plumber_ta_tl } { \l__plumber_pa_tl }
+      { \l__plumber_wd_fp } { \l__plumber_h_fp }
+  }
+
+% A bent tube joining the circles at s = #2 and s = #3 on the seam t = #1,
+% bulging in direction #4 (+1 or -1).
+\cs_new_protected:Npn \__plumber_bend:nnnn #1#2#3#4
+  {
+    \fp_set:Nn \l__plumber_mid_fp { ( #2 + #3 ) / 2 }
+    \fp_set:Nn \l__plumber_ro_fp { ( #3 - #2 ) / 2 + \l__plumber_R_fp }
+    \fp_set:Nn \l__plumber_ri_fp
+      { max ( ( #3 - #2 ) / 2 - \l__plumber_R_fp , 0.01 ) }
+    \fp_set:Nn \l__plumber_Do_fp
+      { #4 * min ( \l__plumber_ro_fp , 0.9 * \l__plumber_L_fp ) }
+    \fp_set:Nn \l__plumber_Di_fp
+      { \l__plumber_Do_fp * \l__plumber_ri_fp / \l__plumber_ro_fp }
+    \__plumber_point:nnn { a } {#1} { \l__plumber_mid_fp - \l__plumber_ro_fp }
+    \__plumber_dome:nnnnn { o } {#1} { \l__plumber_mid_fp }
+      { \l__plumber_Do_fp } { \l__plumber_ro_fp }
+    \__plumber_point:nnn { b } {#1} { \l__plumber_mid_fp + \l__plumber_ri_fp }
+    \__plumber_dome:nnnnn { i } {#1} { \l__plumber_mid_fp }
+      { \l__plumber_Di_fp } { - \l__plumber_ri_fp }
+    \__plumber_shape:nn
+      {
+        \__plumber_p:n { a } \__plumber_dome_path:n { o }
+        -- \__plumber_p:n { b } \__plumber_dome_path:n { i }
+      }
+      {
+        \__plumber_p:n { a } \__plumber_dome_path:n { o } ~
+        \__plumber_p:n { b } \__plumber_dome_path:n { i }
+      }
+  }
+\cs_new_protected:Npn \__plumber_draw_pair:
+  {
+    \__plumber_bend:nnnn { \l__plumber_ta_tl }
+      { \l__plumber_pa_tl } { \l__plumber_pb_tl } { 1 }
+  }
+\cs_new_protected:Npn \__plumber_draw_copair:
+  {
+    \__plumber_bend:nnnn { \l__plumber_tb_tl }
+      { \l__plumber_qa_tl } { \l__plumber_qb_tl } { -1 }
+  }
+
+% ---------------------------------------------------------------------------
+% Drawing one factor (a composable word of layers)
+% ---------------------------------------------------------------------------
+\cs_new:Npn \__plumber_cm:Nn #1#2
+  {
+    \int_compare:nNnF {#2} > { \clist_count:N #1 }
+      { \fp_eval:n { \l__plumber_d_fp * ( \clist_item:Nn #1 {#2} ) } }
+  }
+
+\cs_new_protected:Npn \__plumber_extent:
+  {
+    \fp_set:Nn \l__plumber_smin_fp { inf }
+    \fp_set:Nn \l__plumber_smax_fp { -inf }
+    \prop_map_inline:Nn \l__plumber_pos_prop
+      {
+        \clist_map_inline:nn {##2}
+          {
+            \fp_set:Nn \l__plumber_smin_fp
+              { min ( \l__plumber_smin_fp , ####1 * \l__plumber_d_fp ) }
+            \fp_set:Nn \l__plumber_smax_fp
+              { max ( \l__plumber_smax_fp , ####1 * \l__plumber_d_fp ) }
+          }
+      }
+    \fp_compare:nNnTF \l__plumber_smin_fp > \l__plumber_smax_fp
+      {
+        \fp_zero:N \l__plumber_smin_fp
+        \fp_zero:N \l__plumber_smax_fp
+      }
+      {
+        \fp_sub:Nn \l__plumber_smin_fp { \l__plumber_R_fp }
+        \fp_add:Nn \l__plumber_smax_fp { \l__plumber_R_fp }
+      }
+    \fp_set:Nn \l__plumber_T_fp { \l__plumber_N_int * \l__plumber_L_fp }
+    \fp_set:Nn \l__plumber_e_fp { \l__plumber_persp_fp * \l__plumber_R_fp }
+  }
+
+\cs_new_protected:Npn \__plumber_draw_layer:nn #1#2
+  {
+    \tl_set:Ne \l__plumber_ta_tl { \fp_eval:n { ( #1 - 1 ) * \l__plumber_L_fp } }
+    \tl_set:Ne \l__plumber_tb_tl { \fp_eval:n { #1 * \l__plumber_L_fp } }
+    \prop_get:NeN \l__plumber_pos_prop { \int_eval:n { #1 - 1 } }
+      \l__plumber_inpos_clist
+    \prop_get:NeN \l__plumber_pos_prop {#1} \l__plumber_outpos_clist
+    \int_set:Nn \l__plumber_idx_int { 1 }
+    \int_set:Nn \l__plumber_out_int { 1 }
+    \clist_map_inline:nn {#2}
+      {
+        \tl_set:Ne \l__plumber_pa_tl
+          { \__plumber_cm:Nn \l__plumber_inpos_clist { \l__plumber_idx_int } }
+        \tl_set:Ne \l__plumber_pb_tl
+          { \__plumber_cm:Nn \l__plumber_inpos_clist { \l__plumber_idx_int + 1 } }
+        \tl_set:Ne \l__plumber_qa_tl
+          { \__plumber_cm:Nn \l__plumber_outpos_clist { \l__plumber_out_int } }
+        \tl_set:Ne \l__plumber_qb_tl
+          { \__plumber_cm:Nn \l__plumber_outpos_clist { \l__plumber_out_int + 1 } }
+        \use:c { __plumber_draw_ ##1 : }
+        \int_add:Nn \l__plumber_idx_int { \__plumber_in:n {##1} }
+        \int_add:Nn \l__plumber_out_int { \__plumber_out:n {##1} }
+      }
+  }
+
+% Circle at (t, s) = (#1, #2): the whole ellipse (#3 = full) or front half
+% solid and back half dashed (#3 = half).
+\cs_new_protected:Npn \__plumber_circle:nnn #1#2#3
+  {
+    \tl_set:Ne \l__plumber_x_tl
+      { \fp_eval:n { round ( \__plumber_x:nn {#1} {#2} , 4 ) } }
+    \tl_set:Ne \l__plumber_y_tl
+      { \fp_eval:n { round ( \__plumber_y:nn {#1} {#2} , 4 ) } }
+    \bool_if:NTF \l__plumber_vertical_bool
+      {
+        \tl_set:Ne \l__plumber_fx_tl { \fp_eval:n { round ( \l__plumber_R_fp , 4 ) } }
+        \tl_set:Ne \l__plumber_fy_tl { \fp_eval:n { round ( \l__plumber_e_fp , 4 ) } }
+      }
+      {
+        \tl_set:Ne \l__plumber_fx_tl { \fp_eval:n { round ( \l__plumber_e_fp , 4 ) } }
+        \tl_set:Ne \l__plumber_fy_tl { \fp_eval:n { round ( \l__plumber_R_fp , 4 ) } }
+      }
+    \str_if_eq:nnTF {#3} { full }
+      {
+        \__plumber_emit:n
+          {
+            \exp_not:N \draw [ pl~boundary ]
+              ( \l__plumber_x_tl , \l__plumber_y_tl ) ~ ellipse ~
+              [ x~radius = \l__plumber_fx_tl , y~radius = \l__plumber_fy_tl ] ;
+          }
+      }
+      {
+        \bool_if:NTF \l__plumber_vertical_bool
+          {
+            \tl_set:Ne \l__plumber_tmp_tl
+              {
+                ( \fp_eval:n { \l__plumber_x_tl - \l__plumber_fx_tl } ,
+                  \l__plumber_y_tl )
+              }
+            \__plumber_circle_halves:nnn { 180 } { 360 } { 0 }
+          }
+          {
+            \tl_set:Ne \l__plumber_tmp_tl
+              {
+                ( \l__plumber_x_tl ,
+                  \fp_eval:n { \l__plumber_y_tl + \l__plumber_fy_tl } )
+              }
+            \__plumber_circle_halves:nnn { 90 } { -90 } { 270 }
+          }
+      }
+  }
+\cs_new_protected:Npn \__plumber_circle_halves:nnn #1#2#3
+  {
+    \__plumber_emit:n
+      {
+        \exp_not:N \draw [ pl~seam ] \l__plumber_tmp_tl ~ arc ~
+          [ start~angle = #1 , end~angle = #2 ,
+            x~radius = \l__plumber_fx_tl , y~radius = \l__plumber_fy_tl ] ;
+        \exp_not:N \draw [ pl~hidden ] \l__plumber_tmp_tl ~ arc ~
+          [ start~angle = #1 , end~angle = #3 ,
+            x~radius = \l__plumber_fx_tl , y~radius = \l__plumber_fy_tl ] ;
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_draw_seams:
+  {
+    \int_step_inline:nnn { 0 } { \l__plumber_N_int }
+      {
+        \bool_lazy_or:nnT
+          { \l__plumber_seams_bool }
+          {
+            \int_compare_p:nNn {##1} = 0 ||
+            \int_compare_p:nNn {##1} = \l__plumber_N_int
+          }
+          {
+            \bool_if:nTF
+              {
+                ( ! \l__plumber_reverse_bool && \int_compare_p:nNn {##1} = 0 ) ||
+                ( \l__plumber_reverse_bool &&
+                  \int_compare_p:nNn {##1} = \l__plumber_N_int )
+              }
+              { \tl_set:Nn \l__plumber_tmpb_tl { full } }
+              { \tl_set:Nn \l__plumber_tmpb_tl { half } }
+            \prop_get:NnN \l__plumber_pos_prop {##1} \l__plumber_tmp_clist
+            \clist_map_inline:Nn \l__plumber_tmp_clist
+              {
+                \__plumber_circle:nnV
+                  { ##1 * \l__plumber_L_fp } { ####1 * \l__plumber_d_fp }
+                  \l__plumber_tmpb_tl
+              }
+          }
+      }
+  }
+\cs_generate_variant:Nn \__plumber_circle:nnn { nnV }
+
+% Width of the current factor on the page.
+\cs_new:Npn \__plumber_page_width:
+  {
+    \bool_if:NTF \l__plumber_vertical_bool
+      { \l__plumber_smax_fp - \l__plumber_smin_fp }
+      { \l__plumber_T_fp }
+  }
+
+% Symbolic name of a layer, e.g. \Delta \otimes \mathrm{id}.
+\cs_new_protected:Npn \__plumber_layer_expr:n #1
+  {
+    \tl_clear:N \l__plumber_expr_tl
+    \clist_map_inline:nn {#1}
+      {
+        \tl_if_empty:NF \l__plumber_expr_tl
+          { \tl_put_right:Nn \l__plumber_expr_tl { \otimes } }
+        \tl_put_right:Ne \l__plumber_expr_tl
+          { \prop_item:Nn \l__plumber_symbols_prop {##1} }
+      }
+    \tl_if_empty:NT \l__plumber_expr_tl
+      { \tl_set:Nn \l__plumber_expr_tl { \mathrm{id}_\emptyset } }
+  }
+
+\cs_new_protected:Npn \__plumber_measure:n #1
+  {
+    \hbox_set:Nn \l__plumber_tmp_box {#1}
+    \fp_set:Nn \l__plumber_wd_fp
+      {
+        \dim_to_fp:n { \box_wd:N \l__plumber_tmp_box }
+        / \dim_to_fp:n { 1cm } / \l__plumber_scale_fp
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_layer_names:
+  {
+    \fp_zero:N \l__plumber_namewd_fp
+    \seq_map_indexed_inline:Nn \l__plumber_layers_seq
+      {
+        \__plumber_layer_expr:n {##2}
+        \bool_if:NTF \l__plumber_vertical_bool
+          {
+            \__plumber_measure:n { $ \l__plumber_expr_tl $ }
+            \fp_set:Nn \l__plumber_namewd_fp
+              { max ( \l__plumber_namewd_fp , \l__plumber_wd_fp + 0.2 ) }
+            \tl_put_right:Ne \l__plumber_draw_tl
+              {
+                \exp_not:N \node [ pl~name~right ] ~ at ~
+                  ( \fp_eval:n
+                      { round ( \l__plumber_off_fp + \__plumber_page_width: , 4 ) } ,
+                    \fp_eval:n
+                      { round ( \__plumber_y:nn { ( ##1 - 0.5 ) * \l__plumber_L_fp } { 0 } , 4 ) } )
+                  { $ \exp_not:V \l__plumber_expr_tl $ } ;
+              }
+          }
+          {
+            \tl_put_right:Ne \l__plumber_names_tl
+              {
+                \exp_not:N \node [ pl~name ] ~ at ~
+                  ( plsouth ~ -| ~
+                    \fp_eval:n
+                      { round ( \__plumber_x:nn { ( ##1 - 0.5 ) * \l__plumber_L_fp } { 0 } , 4 ) } ,
+                    0 )
+                  { $ \exp_not:V \l__plumber_expr_tl $ } ;
+              }
+          }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_draw_factor:
+  {
+    \__plumber_counts:
+    \__plumber_layout:
+    \__plumber_extent:
+    \__plumber_compact_trim:
+    \seq_map_indexed_inline:Nn \l__plumber_layers_seq
+      { \__plumber_draw_layer:nn {##1} {##2} }
+    \__plumber_draw_seams:
+    \fp_zero:N \l__plumber_namewd_fp
+    \bool_if:NT \l__plumber_names_bool
+      {
+        \bool_if:NTF \l__plumber_caption_bool
+          {
+            \exp_args:Ne \__plumber_layer_expr:n
+              { \seq_item:Nn \l__plumber_layers_seq { 1 } }
+            \tl_put_right:Ne \l__plumber_names_tl
+              {
+                \exp_not:N \node [ pl~name ] ~ at ~
+                  ( plsouth ~ -| ~
+                    \fp_eval:n
+                      { round ( \l__plumber_off_fp + ( \__plumber_page_width: ) / 2 , 4 ) } ,
+                    0 )
+                  { $ \exp_not:V \l__plumber_expr_tl $ } ;
+              }
+          }
+          {
+            \bool_if:NT \l__plumber_layer_names_bool
+              { \__plumber_layer_names: }
+          }
+      }
+    \fp_add:Nn \l__plumber_off_fp
+      { \__plumber_page_width: + \l__plumber_namewd_fp }
+    \__plumber_compact_trim:
+  }
+% A closed component drawn compactly starts and ends with a bare dome,
+% leaving empty space at both ends of its first and last layer.
+\cs_new_protected:Npn \__plumber_compact_trim:
+  {
+    \bool_lazy_and:nnT
+      { \l__plumber_compact_bool } { ! \l__plumber_vertical_bool }
+      {
+        \fp_sub:Nn \l__plumber_off_fp
+          { \l__plumber_L_fp - min ( \l__plumber_R_fp , 0.9 * \l__plumber_L_fp ) }
+      }
+  }
+
+% ---------------------------------------------------------------------------
+% Analysis: connected components, genus and the normal form
+%
+% The nodes are the circles "k.i" (circle i on seam k).  Every generator
+% glues its circles into one piece (a swap gives two cylinders); the Euler
+% characteristic of a component is the sum over its pieces, and a connected
+% surface with b boundary circles has genus (2 - chi - b) / 2.
+% ---------------------------------------------------------------------------
+\cs_new_protected:Npn \__plumber_find:nN #1#2
+  {
+    \tl_set:Ne #2 {#1}
+    \bool_until_do:nn
+      {
+        \str_if_eq_p:ee
+          { \prop_item:Ne \l__plumber_parent_prop {#2} } {#2}
+      }
+      { \tl_set:Ne #2 { \prop_item:Ne \l__plumber_parent_prop {#2} } }
+  }
+\cs_new_protected:Npn \__plumber_union:nn #1#2
+  {
+    \__plumber_find:nN {#1} \l__plumber_fx_tl
+    \__plumber_find:nN {#2} \l__plumber_fy_tl
+    \str_if_eq:VVF \l__plumber_fx_tl \l__plumber_fy_tl
+      { \prop_put:NVV \l__plumber_parent_prop \l__plumber_fy_tl \l__plumber_fx_tl }
+  }
+\cs_generate_variant:Nn \prop_put:Nnn { NVV }
+
+% Generator #2 of layer #1, inputs from idx, outputs from out.
+\cs_new_protected:Npn \__plumber_connect:nn #1#2
+  {
+    \bool_lazy_or:nnTF { \str_if_eq_p:nn {#2} { swap } } { \str_if_eq_p:nn {#2} { iswap } }
+      {
+        \__plumber_union:nn
+          { \int_eval:n { #1 - 1 } . \int_use:N \l__plumber_idx_int }
+          { #1 . \int_eval:n { \l__plumber_out_int + 1 } }
+        \__plumber_union:nn
+          { \int_eval:n { #1 - 1 } . \int_eval:n { \l__plumber_idx_int + 1 } }
+          { #1 . \int_use:N \l__plumber_out_int }
+      }
+      {
+        \int_compare:nNnTF { \__plumber_in:n {#2} } > 0
+          { \tl_set:Ne \l__plumber_tmp_tl { \int_eval:n { #1 - 1 } . \int_use:N \l__plumber_idx_int } }
+          { \tl_set:Ne \l__plumber_tmp_tl { #1 . \int_use:N \l__plumber_out_int } }
+        \int_step_inline:nnn { 0 } { \__plumber_in:n {#2} - 1 }
+          {
+            \__plumber_union:nn { \l__plumber_tmp_tl }
+              { \int_eval:n { #1 - 1 } . \int_eval:n { \l__plumber_idx_int + ##1 } }
+          }
+        \int_step_inline:nnn { 0 } { \__plumber_out:n {#2} - 1 }
+          {
+            \__plumber_union:nn { \l__plumber_tmp_tl }
+              { #1 . \int_eval:n { \l__plumber_out_int + ##1 } }
+          }
+        \seq_put_right:Ne \l__plumber_pieces_seq
+          { { \l__plumber_tmp_tl } { \prop_item:Nn \c__plumber_chi_prop {#2} } }
+      }
+  }
+
+% Record circle #2 (input or output number #3) of the component of node #1.
+\cs_new_protected:Npn \__plumber_record:nNn #1#2#3
+  {
+    \__plumber_find:nN {#1} \l__plumber_fx_tl
+    \prop_if_in:NVF \l__plumber_cin_prop \l__plumber_fx_tl
+      {
+        \seq_put_right:NV \l__plumber_roots_seq \l__plumber_fx_tl
+        \prop_put:NVn \l__plumber_cin_prop \l__plumber_fx_tl { }
+        \prop_put:NVn \l__plumber_cout_prop \l__plumber_fx_tl { }
+      }
+    \prop_get:NVN #2 \l__plumber_fx_tl \l__plumber_tmp_tl
+    \tl_if_empty:NTF \l__plumber_tmp_tl
+      { \prop_put:NVn #2 \l__plumber_fx_tl {#3} }
+      { \prop_put:NVe #2 \l__plumber_fx_tl { \l__plumber_tmp_tl , #3 } }
+  }
+\prg_generate_conditional_variant:Nnn \prop_if_in:Nn { NV } { T , F , TF }
+\cs_generate_variant:Nn \prop_put:Nnn { NVn , NVe }
+\cs_generate_variant:Nn \prop_get:NnN { NVN }
+
+\cs_new_protected:Npn \__plumber_analyse:
+  {
+    \__plumber_counts:
+    \int_set:Nn \l__plumber_m_int { \__plumber_count:n { 0 } }
+    \int_set:Nn \l__plumber_n_int { \__plumber_count:n { \l__plumber_N_int } }
+    \prop_clear:N \l__plumber_parent_prop
+    \prop_clear:N \l__plumber_chi_prop
+    \prop_clear:N \l__plumber_cin_prop
+    \prop_clear:N \l__plumber_cout_prop
+    \seq_clear:N \l__plumber_pieces_seq
+    \seq_clear:N \l__plumber_roots_seq
+    \int_step_inline:nnn { 0 } { \l__plumber_N_int }
+      {
+        \int_step_inline:nn { \__plumber_count:n {##1} }
+          { \prop_put:Nnn \l__plumber_parent_prop { ##1 . ####1 } { ##1 . ####1 } }
+      }
+    \seq_map_indexed_inline:Nn \l__plumber_layers_seq
+      {
+        \int_set:Nn \l__plumber_idx_int { 1 }
+        \int_set:Nn \l__plumber_out_int { 1 }
+        \clist_map_inline:nn {##2}
+          {
+            \__plumber_connect:nn {##1} {####1}
+            \int_add:Nn \l__plumber_idx_int { \__plumber_in:n {####1} }
+            \int_add:Nn \l__plumber_out_int { \__plumber_out:n {####1} }
+          }
+      }
+    \seq_map_inline:Nn \l__plumber_pieces_seq
+      { \__plumber_add_chi:nn ##1 }
+    \int_step_inline:nn { \l__plumber_m_int }
+      { \__plumber_record:nNn { 0 . ##1 } \l__plumber_cin_prop {##1} }
+    \int_step_inline:nn { \l__plumber_n_int }
+      {
+        \__plumber_record:nNn { \int_use:N \l__plumber_N_int . ##1 }
+          \l__plumber_cout_prop {##1}
+      }
+    % closed components
+    \seq_clear:N \l__plumber_closed_seq
+    \prop_map_inline:Nn \l__plumber_parent_prop
+      {
+        \str_if_eq:nnT {##1} {##2}
+          {
+            \prop_if_in:NnF \l__plumber_cin_prop {##1}
+              {
+                \prop_put:Nnn \l__plumber_cin_prop {##1} { }
+                \seq_put_right:Ne \l__plumber_closed_seq
+                  { \__plumber_genus:nnn {##1} { 0 } { 0 } }
+              }
+          }
+      }
+    \seq_sort:Nn \l__plumber_closed_seq
+      {
+        \int_compare:nNnTF {##1} > {##2}
+          { \sort_return_swapped: } { \sort_return_same: }
+      }
+    \__plumber_components:
+    \__plumber_normal_form:
+  }
+\cs_new_protected:Npn \__plumber_add_chi:nn #1#2
+  {
+    \__plumber_find:nN {#1} \l__plumber_fx_tl
+    \prop_put:NVe \l__plumber_chi_prop \l__plumber_fx_tl
+      {
+        \int_eval:n
+          {
+            #2 +
+            \prop_if_in:NVTF \l__plumber_chi_prop \l__plumber_fx_tl
+              { \prop_item:NV \l__plumber_chi_prop \l__plumber_fx_tl } { 0 }
+          }
+      }
+  }
+\prg_generate_conditional_variant:Nnn \prop_if_in:Nn { NV } { p }
+% Genus of the component with root #1 and #2 + #3 boundary circles.
+\cs_new:Npn \__plumber_genus:nnn #1#2#3
+  {
+    \int_eval:n
+      {
+        ( 2 - #2 - #3 -
+          ( \prop_if_in:NeTF \l__plumber_chi_prop {#1}
+              { \prop_item:Ne \l__plumber_chi_prop {#1} } { 0 } ) ) / 2
+      }
+  }
+
+% Components with boundary: number of inputs/outputs, genus and a sort key
+% (the mean position of their circles, so that the normal form needs few
+% swaps).
+\cs_new_protected:Npn \__plumber_components:
+  {
+    \int_zero:N \l__plumber_chi_int
+    \int_zero:N \l__plumber_genus_int
+    \prop_clear:N \l__plumber_key_prop
+    \seq_clear:N \l__plumber_open_seq
+    \seq_map_inline:Nn \l__plumber_roots_seq
+      {
+        \prop_get:NnN \l__plumber_cin_prop {##1} \l__plumber_tmp_tl
+        \int_set:Nn \l__plumber_a_int { \clist_count:N \l__plumber_tmp_tl }
+        \fp_set:Nn \l__plumber_key_fp { 0 }
+        \clist_map_inline:Nn \l__plumber_tmp_tl
+          {
+            \fp_add:Nn \l__plumber_key_fp
+              { ####1 - ( \l__plumber_m_int + 1 ) / 2 }
+          }
+        \prop_get:NnN \l__plumber_cout_prop {##1} \l__plumber_tmp_tl
+        \int_set:Nn \l__plumber_b_int { \clist_count:N \l__plumber_tmp_tl }
+        \clist_map_inline:Nn \l__plumber_tmp_tl
+          {
+            \fp_add:Nn \l__plumber_key_fp
+              { ####1 - ( \l__plumber_n_int + 1 ) / 2 }
+          }
+        \prop_put:Nne \l__plumber_key_prop {##1}
+          {
+            \fp_eval:n
+              { \l__plumber_key_fp / ( \l__plumber_a_int + \l__plumber_b_int ) }
+          }
+        \seq_put_right:Nn \l__plumber_open_seq {##1}
+      }
+    \seq_sort:Nn \l__plumber_open_seq
+      {
+        \fp_compare:nNnTF
+          { \prop_item:Nn \l__plumber_key_prop {##1} }
+          > { \prop_item:Nn \l__plumber_key_prop {##2} }
+          { \sort_return_swapped: } { \sort_return_same: }
+      }
+    \prop_clear:N \l__plumber_rank_prop
+    \prop_clear:N \l__plumber_ca_prop
+    \prop_clear:N \l__plumber_cb_prop
+    \prop_clear:N \l__plumber_cg_prop
+    \seq_map_indexed_inline:Nn \l__plumber_open_seq
+      {
+        \prop_put:Nnn \l__plumber_rank_prop {##2} {##1}
+        \prop_get:NnN \l__plumber_cin_prop {##2} \l__plumber_tmp_tl
+        \prop_put:Nne \l__plumber_ca_prop {##1} { \clist_count:N \l__plumber_tmp_tl }
+        \prop_get:NnN \l__plumber_cout_prop {##2} \l__plumber_tmp_tl
+        \prop_put:Nne \l__plumber_cb_prop {##1} { \clist_count:N \l__plumber_tmp_tl }
+        \prop_put:Nne \l__plumber_cg_prop {##1}
+          {
+            \__plumber_genus:nnn {##2}
+              { \prop_item:Nn \l__plumber_ca_prop {##1} }
+              { \prop_item:Nn \l__plumber_cb_prop {##1} }
+          }
+        \int_add:Nn \l__plumber_genus_int { \prop_item:Nn \l__plumber_cg_prop {##1} }
+      }
+    \seq_map_inline:Nn \l__plumber_closed_seq
+      { \int_add:Nn \l__plumber_genus_int {##1} }
+    \int_gset:Nn \g__plumber_components_int
+      { \seq_count:N \l__plumber_open_seq + \seq_count:N \l__plumber_closed_seq }
+    \int_gset:Nn \g__plumber_closed_int { \seq_count:N \l__plumber_closed_seq }
+    \int_gset_eq:NN \g__plumber_genus_int \l__plumber_genus_int
+    \int_gset:Nn \g__plumber_euler_int
+      {
+        2 * \g__plumber_components_int - 2 * \l__plumber_genus_int
+        - \l__plumber_m_int - \l__plumber_n_int
+      }
+  }
+
+% Odd-even transposition sort of the ranks in \l__plumber_arr_prop (#1
+% entries); the layers of swaps are appended to \l__plumber_perm_seq.
+\cs_new_protected:Npn \__plumber_sort_layers:n #1
+  {
+    \seq_clear:N \l__plumber_perm_seq
+    \int_zero:N \l__plumber_quiet_int
+    \int_zero:N \l__plumber_parity_int
+    \bool_until_do:nn
+      { \int_compare_p:nNn \l__plumber_quiet_int > 1 || \int_compare_p:nNn {#1} < 2 }
+      {
+        \clist_clear:N \l__plumber_layer_clist
+        \int_zero:N \l__plumber_swaps_int
+        \int_set:Nn \l__plumber_j_int { 1 }
+        \bool_until_do:nn { \int_compare_p:nNn \l__plumber_j_int > {#1} }
+          {
+            \bool_lazy_all:nTF
+              {
+                { \int_compare_p:nNn \l__plumber_j_int < {#1} }
+                {
+                  \int_compare_p:nNn
+                    { \int_mod:nn { \l__plumber_j_int + \l__plumber_parity_int } { 2 } } = 1
+                }
+                {
+                  \int_compare_p:nNn
+                    { \prop_item:Ne \l__plumber_arr_prop { \int_use:N \l__plumber_j_int } }
+                    >
+                    { \prop_item:Ne \l__plumber_arr_prop { \int_eval:n { \l__plumber_j_int + 1 } } }
+                }
+              }
+              {
+                \tl_set:Ne \l__plumber_tmp_tl
+                  { \prop_item:Ne \l__plumber_arr_prop { \int_use:N \l__plumber_j_int } }
+                \prop_put:Nee \l__plumber_arr_prop { \int_use:N \l__plumber_j_int }
+                  { \prop_item:Ne \l__plumber_arr_prop { \int_eval:n { \l__plumber_j_int + 1 } } }
+                \prop_put:NeV \l__plumber_arr_prop { \int_eval:n { \l__plumber_j_int + 1 } }
+                  \l__plumber_tmp_tl
+                \clist_put_right:Nn \l__plumber_layer_clist { swap }
+                \int_incr:N \l__plumber_swaps_int
+                \int_add:Nn \l__plumber_j_int { 2 }
+              }
+              {
+                \clist_put_right:Nn \l__plumber_layer_clist { id }
+                \int_incr:N \l__plumber_j_int
+              }
+          }
+        \int_compare:nNnTF \l__plumber_swaps_int > 0
+          {
+            \int_zero:N \l__plumber_quiet_int
+            \seq_put_right:NV \l__plumber_perm_seq \l__plumber_layer_clist
+          }
+          { \int_incr:N \l__plumber_quiet_int }
+        \int_set:Nn \l__plumber_parity_int { 1 - \l__plumber_parity_int }
+      }
+  }
+
+% Number of halvings (rounding up) needed to get from #1 down to 1.
+\cs_new:Npn \__plumber_depth:n #1
+  { \__plumber_depth_aux:nn {#1} { 0 } }
+\cs_new:Npn \__plumber_depth_aux:nn #1#2
+  {
+    \int_compare:nNnTF {#1} > 1
+      {
+        \exp_args:Nff \__plumber_depth_aux:nn
+          { \int_div_truncate:nn { #1 + 1 } { 2 } } { \int_eval:n { #2 + 1 } }
+      }
+      {#2}
+  }
+% #1 halved #2 times (rounding up).
+\cs_new:Npn \__plumber_halve:nn #1#2
+  {
+    \int_compare:nNnTF {#2} > 0
+      {
+        \exp_args:Nff \__plumber_halve:nn
+          { \int_div_truncate:nn { #1 + 1 } { 2 } } { \int_eval:n { #2 - 1 } }
+      }
+      {#1}
+  }
+
+% Kind of component #1 (its rank): pair (2 -> 0, genus 0), copair (0 -> 2,
+% genus 0) or general.
+\cs_new:Npn \__plumber_kind:n #1
+  {
+    \int_compare:nNnTF { \prop_item:Ne \l__plumber_cg_prop {#1} } = 0
+      {
+        \str_case:enF
+          {
+            \prop_item:Ne \l__plumber_ca_prop {#1} ,
+            \prop_item:Ne \l__plumber_cb_prop {#1}
+          }
+          { { 2,0 } { pair } { 0,2 } { copair } }
+          { general }
+      }
+      { general }
+  }
+\cs_new:Npn \__plumber_merge_depth:n #1
+  {
+    \str_case:enF { \__plumber_kind:n {#1} }
+      { { pair } { 1 } { copair } { 0 } }
+      {
+        \int_compare:nNnTF { \prop_item:Ne \l__plumber_ca_prop {#1} } = 0
+          { 1 } { \__plumber_depth:n { \prop_item:Ne \l__plumber_ca_prop {#1} } }
+      }
+  }
+\cs_new:Npn \__plumber_split_depth:n #1
+  {
+    \str_case:enF { \__plumber_kind:n {#1} }
+      { { pair } { 0 } { copair } { 1 } }
+      {
+        \int_compare:nNnTF { \prop_item:Ne \l__plumber_cb_prop {#1} } = 0
+          { 1 } { \__plumber_depth:n { \prop_item:Ne \l__plumber_cb_prop {#1} } }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_ops:n #1
+  { \clist_put_right:Ne \l__plumber_layer_clist {#1} }
+\cs_new_protected:Npn \__plumber_ids:n #1
+  { \prg_replicate:nn {#1} { \__plumber_ops:n { id } } }
+% w circles merged (#2 = copant) or split (#2 = pant) pairwise.
+\cs_new_protected:Npn \__plumber_pairwise:nn #1#2
+  {
+    \prg_replicate:nn { \int_div_truncate:nn {#1} { 2 } } { \__plumber_ops:n {#2} }
+    \int_if_odd:nT {#1} { \__plumber_ops:n { id } }
+  }
+
+% Operations of component #1 in merge layer #2 (of M).
+\cs_new_protected:Npn \__plumber_merge_ops:nn #1#2
+  {
+    \int_set:Nn \l__plumber_r_int
+      { #2 - \l__plumber_M_int + \__plumber_merge_depth:n {#1} }
+    \int_set:Nn \l__plumber_a_int { \prop_item:Ne \l__plumber_ca_prop {#1} }
+    \int_compare:nNnTF \l__plumber_r_int < 1
+      { \__plumber_ids:n { \l__plumber_a_int } }
+      {
+        \str_case:enF { \__plumber_kind:n {#1} }
+          {
+            { pair } { \__plumber_ops:n { pair } }
+            { copair } { }
+          }
+          {
+            \int_compare:nNnTF \l__plumber_a_int = 0
+              { \__plumber_ops:n { unit } }
+              {
+                \__plumber_pairwise:nn
+                  { \__plumber_halve:nn { \l__plumber_a_int } { \l__plumber_r_int - 1 } }
+                  { copant }
+              }
+          }
+      }
+  }
+\cs_new_protected:Npn \__plumber_handle_ops:nn #1#2
+  {
+    \str_if_eq:eeT { \__plumber_kind:n {#1} } { general }
+      {
+        \int_compare:nNnTF {#2} > { 2 * \prop_item:Ne \l__plumber_cg_prop {#1} }
+          { \__plumber_ops:n { id } }
+          { \int_if_odd:nTF {#2} { \__plumber_ops:n { pant } } { \__plumber_ops:n { copant } } }
+      }
+  }
+\cs_new_protected:Npn \__plumber_split_ops:nn #1#2
+  {
+    \int_set:Nn \l__plumber_b_int { \prop_item:Ne \l__plumber_cb_prop {#1} }
+    \int_set:Nn \l__plumber_r_int { \__plumber_split_depth:n {#1} }
+    \int_compare:nNnTF {#2} > \l__plumber_r_int
+      { \__plumber_ids:n { \l__plumber_b_int } }
+      {
+        \str_case:enF { \__plumber_kind:n {#1} }
+          {
+            { pair } { }
+            { copair } { \__plumber_ops:n { copair } }
+          }
+          {
+            \int_compare:nNnTF \l__plumber_b_int = 0
+              { \__plumber_ops:n { counit } }
+              {
+                \__plumber_pairwise:nn
+                  {
+                    \__plumber_halve:nn { \l__plumber_b_int }
+                      { \l__plumber_r_int - #2 }
+                  }
+                  { pant }
+              }
+          }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_main_layer:
+  {
+    \tl_put_right:Ne \l__plumber_main_tl
+      { { \exp_not:V \l__plumber_layer_clist } }
+  }
+\cs_new_protected:Npn \__plumber_stage:Nn #1#2
+  {
+    \int_step_inline:nn {#1}
+      {
+        \clist_clear:N \l__plumber_layer_clist
+        \int_step_inline:nn { \seq_count:N \l__plumber_open_seq }
+          { #2 {####1} {##1} }
+        \__plumber_main_layer:
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_normal_form:
+  {
+    \tl_clear:N \l__plumber_main_tl
+    % permutation of the inputs
+    \prop_clear:N \l__plumber_arr_prop
+    \int_step_inline:nn { \l__plumber_m_int }
+      {
+        \__plumber_find:nN { 0 . ##1 } \l__plumber_fx_tl
+        \prop_put:Nne \l__plumber_arr_prop {##1}
+          { \prop_item:NV \l__plumber_rank_prop \l__plumber_fx_tl }
+      }
+    \__plumber_sort_layers:n { \l__plumber_m_int }
+    \seq_map_inline:Nn \l__plumber_perm_seq
+      { \tl_put_right:Nn \l__plumber_main_tl { {##1} } }
+    % merges, handles, splits
+    \int_zero:N \l__plumber_M_int
+    \int_zero:N \l__plumber_H_int
+    \int_zero:N \l__plumber_S_int
+    \int_step_inline:nn { \seq_count:N \l__plumber_open_seq }
+      {
+        \int_set:Nn \l__plumber_M_int
+          { \int_max:nn { \l__plumber_M_int } { \__plumber_merge_depth:n {##1} } }
+        \int_set:Nn \l__plumber_S_int
+          { \int_max:nn { \l__plumber_S_int } { \__plumber_split_depth:n {##1} } }
+        \int_set:Nn \l__plumber_H_int
+          {
+            \int_max:nn { \l__plumber_H_int }
+              { 2 * \prop_item:Nn \l__plumber_cg_prop {##1} }
+          }
+      }
+    \__plumber_stage:Nn \l__plumber_M_int \__plumber_merge_ops:nn
+    \__plumber_stage:Nn \l__plumber_H_int \__plumber_handle_ops:nn
+    \__plumber_stage:Nn \l__plumber_S_int \__plumber_split_ops:nn
+    % permutation of the outputs (the sorting layers, read backwards)
+    \prop_clear:N \l__plumber_arr_prop
+    \int_step_inline:nn { \l__plumber_n_int }
+      {
+        \__plumber_find:nN { \int_use:N \l__plumber_N_int . ##1 } \l__plumber_fx_tl
+        \prop_put:Nne \l__plumber_arr_prop {##1}
+          { \prop_item:NV \l__plumber_rank_prop \l__plumber_fx_tl }
+      }
+    \__plumber_sort_layers:n { \l__plumber_n_int }
+    \seq_reverse:N \l__plumber_perm_seq
+    \seq_map_inline:Nn \l__plumber_perm_seq
+      { \tl_put_right:Nn \l__plumber_main_tl { {##1} } }
+    \bool_lazy_and:nnT
+      { \tl_if_empty_p:N \l__plumber_main_tl }
+      { \int_compare_p:nNn \l__plumber_m_int > 0 }
+      {
+        \clist_clear:N \l__plumber_layer_clist
+        \__plumber_ids:n { \l__plumber_m_int }
+        \__plumber_main_layer:
+      }
+    \__plumber_nf_string:
+  }
+
+% Word of a closed component of genus #1.
+\cs_new_protected:Npn \__plumber_closed_word:n #1
+  {
+    \tl_set:Nn \l__plumber_word_tl { { unit } }
+    \prg_replicate:nn {#1} { \tl_put_right:Nn \l__plumber_word_tl { { pant } { copant } } }
+    \tl_put_right:Nn \l__plumber_word_tl { { counit } }
+  }
+
+% The normal form as a string of \PL commands (closed components first).
+\cs_new_protected:Npn \__plumber_nf_word:n #1
+  {
+    \bool_lazy_or:nnF
+      { \str_if_empty_p:N \l__plumber_nf_str }
+      { \tl_if_empty_p:n {#1} }
+      { \str_put_right:Nn \l__plumber_nf_str { ~ \cdot ~ } }
+    \tl_map_inline:nn {#1}
+      {
+        \clist_set:Nn \l__plumber_tmp_clist {##1}
+        \str_put_right:Ne \l__plumber_nf_str
+          {
+            \c_backslash_str PL \c_left_brace_str
+            \__plumber_layer_in:n {##1} , \__plumber_layer_out:n {##1}
+            \c_right_brace_str \c_left_brace_str
+            \clist_use:Nn \l__plumber_tmp_clist { , ~ }
+            \c_right_brace_str
+          }
+      }
+  }
+\cs_new_protected:Npn \__plumber_nf_string:
+  {
+    \str_clear:N \l__plumber_nf_str
+    \seq_map_inline:Nn \l__plumber_closed_seq
+      {
+        \__plumber_closed_word:n {##1}
+        \exp_args:NV \__plumber_nf_word:n \l__plumber_word_tl
+      }
+    \exp_args:NV \__plumber_nf_word:n \l__plumber_main_tl
+    \str_gset_eq:NN \g__plumber_nf_str \l__plumber_nf_str
+  }
+
+% ---------------------------------------------------------------------------
+% Rendering
+% ---------------------------------------------------------------------------
+\cs_new_protected:Npn \__plumber_set_word:n #1
+  {
+    \seq_clear:N \l__plumber_layers_seq
+    \tl_map_inline:nn {#1} { \seq_put_right:Nn \l__plumber_layers_seq {##1} }
+  }
+
+\cs_new_protected:Npn \__plumber_separator:
+  {
+    \tl_if_blank:VTF \l__plumber_separator_tl
+      { \fp_add:Nn \l__plumber_off_fp { \l__plumber_gap_fp } }
+      {
+        \__plumber_measure:n { $ \l__plumber_separator_tl $ }
+        \__plumber_emit:n
+          {
+            \exp_not:N \node [ pl~separator ] ~ at ~
+              ( \fp_eval:n
+                  { round ( \l__plumber_off_fp + \l__plumber_gap_fp
+                      + \l__plumber_wd_fp / 2 , 4 ) } , 0 )
+              { \exp_not:N \ensuremath { \exp_not:V \l__plumber_separator_tl } } ;
+          }
+        \fp_add:Nn \l__plumber_off_fp
+          { 2 * \l__plumber_gap_fp + \l__plumber_wd_fp }
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_coefficient:
+  {
+    \tl_clear:N \l__plumber_coeff_tl
+    \int_zero:N \l__plumber_i_int
+    \tl_clear:N \l__plumber_last_tl
+    \seq_map_inline:Nn \l__plumber_closed_seq
+      {
+        \tl_if_eq:NnF \l__plumber_last_tl {##1}
+          {
+            \__plumber_coeff_flush:
+            \tl_set:Nn \l__plumber_last_tl {##1}
+          }
+        \int_incr:N \l__plumber_i_int
+      }
+    \__plumber_coeff_flush:
+    \tl_if_empty:NF \l__plumber_coeff_tl
+      {
+        \__plumber_measure:n { $ \l__plumber_coeff_tl $ }
+        \__plumber_emit:n
+          {
+            \exp_not:N \node [ pl~coefficient ] ~ at ~
+              ( \fp_eval:n { round ( \l__plumber_off_fp + \l__plumber_wd_fp , 4 ) } , 0 )
+              { \exp_not:N \ensuremath { \exp_not:V \l__plumber_coeff_tl } } ;
+          }
+        \fp_add:Nn \l__plumber_off_fp { \l__plumber_wd_fp + 0.1 }
+      }
+  }
+\cs_new_protected:Npn \__plumber_coeff_flush:
+  {
+    \int_compare:nNnT \l__plumber_i_int > 0
+      {
+        \tl_put_right:Ne \l__plumber_coeff_tl
+          {
+            \exp_not:N \__plumber_closed_value:n { \l__plumber_last_tl }
+            \int_compare:nNnT \l__plumber_i_int > 1
+              { \c_math_superscript_token { \int_use:N \l__plumber_i_int } }
+          }
+      }
+    \int_zero:N \l__plumber_i_int
+  }
+
+\cs_new_protected:Npn \__plumber_draw_reduced:
+  {
+    \bool_set_true:N \l__plumber_first_bool
+    \bool_set_false:N \l__plumber_layer_names_bool
+    \bool_if:NTF \l__plumber_closed_draw_bool
+      {
+        \seq_map_inline:Nn \l__plumber_closed_seq
+          {
+            \bool_if:NF \l__plumber_first_bool { \__plumber_separator: }
+            \bool_set_false:N \l__plumber_first_bool
+            \__plumber_closed_word:n {##1}
+            \exp_args:NV \__plumber_set_word:n \l__plumber_word_tl
+            \bool_set_true:N \l__plumber_compact_bool
+            \__plumber_draw_factor:
+            \bool_set_false:N \l__plumber_compact_bool
+          }
+      }
+      { \__plumber_coefficient: }
+    \tl_if_empty:NF \l__plumber_main_tl
+      {
+        \bool_if:NF \l__plumber_first_bool { \__plumber_separator: }
+        \bool_set_true:N \l__plumber_layer_names_bool
+        \exp_args:NV \__plumber_set_word:n \l__plumber_main_tl
+        \__plumber_draw_factor:
+      }
+  }
+
+\cs_new_protected:Npn \__plumber_picture:
+  {
+    \tl_if_empty:NF \l__plumber_names_tl
+      {
+        \tl_put_right:Nn \l__plumber_draw_tl
+          { \coordinate (plsouth) ~ at ~ (current~bounding~box.south) ; }
+        \tl_put_right:NV \l__plumber_draw_tl \l__plumber_names_tl
+      }
+    \tl_if_empty:NT \l__plumber_draw_tl
+      { \tl_set:Nn \l__plumber_draw_tl { \path (0,0) ; } }
+    \tl_set:Ne \l__plumber_opts_tl
+      {
+        baseline = { \exp_not:V \l__plumber_baseline_tl }
+        \exp_not:V \l__plumber_tikz_tl
+      }
+    \__plumber_picture:VV \l__plumber_opts_tl \l__plumber_draw_tl
+  }
+\cs_new_protected:Npn \__plumber_picture:nn #1#2
+  {
+    \__plumber_standalone_nest:
+    \begin{tikzpicture} [ #1 ] #2 \end{tikzpicture}
+  }
+\cs_generate_variant:Nn \__plumber_picture:nn { VV }
+
+\cs_new_protected:Npn \__plumber_render:
+  {
+    \tl_clear:N \l__plumber_draw_tl
+    \tl_clear:N \l__plumber_names_tl
+    \fp_zero:N \l__plumber_off_fp
+    \bool_if:NTF \l__plumber_error_bool
+      {
+        \str_gclear:N \g__plumber_nf_str
+        \int_gzero:N \g__plumber_components_int
+        \int_gzero:N \g__plumber_closed_int
+        \int_gzero:N \g__plumber_genus_int
+        \int_gzero:N \g__plumber_euler_int
+        \__plumber_emit:n { \exp_not:N \node [ pl~error ] ~ at ~ (0,0) { ?? } ; }
+      }
+      {
+        \seq_set_eq:NN \l__plumber_saved_seq \l__plumber_layers_seq
+        \__plumber_analyse:
+        \bool_if:NTF \l__plumber_reduce_bool
+          { \__plumber_draw_reduced: }
+          {
+            \bool_set_true:N \l__plumber_layer_names_bool
+            \seq_set_eq:NN \l__plumber_layers_seq \l__plumber_saved_seq
+            \__plumber_draw_factor:
+          }
+      }
+    \__plumber_picture:
+  }
+
+% ---------------------------------------------------------------------------
+% Chains of \PL commands
+%
+% \PL{2,3}{pant, id}\PL{3,2}{id, copant} is one diagram: the first \PL opens
+% a group and collects layers; each \PL looks at the next token (skipping
+% spaces) and draws the diagram when it is not another \PL.
+% ---------------------------------------------------------------------------
+\bool_new:N \l__plumber_pl_defined_bool
+\cs_new_protected:Npn \__plumber_layer_cmd:nnn #1#2#3
+  {
+    \bool_if:NF \g__plumber_chain_bool
+      {
+        \group_begin:
+        \bool_gset_true:N \g__plumber_chain_bool
+        \__plumber_start:
+      }
+    \keys_set:nn { plumber } {#1}
+    \__plumber_add_layer:nn {#2} {#3}
+    \peek_after:Nw \__plumber_peek:
+  }
+\prg_new_conditional:Npnn \__plumber_if_layer:N #1 { TF }
+  {
+    \bool_lazy_or:nnTF
+      { \token_if_eq_meaning_p:NN #1 \PLlayer }
+      {
+        \l__plumber_pl_defined_bool &&
+        \token_if_eq_meaning_p:NN #1 \PL
+      }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+\cs_new_protected:Npn \__plumber_peek:
+  {
+    \__plumber_if_layer:NTF \l_peek_token
+      { }
+      {
+        \token_if_eq_catcode:NNTF \l_peek_token \c_space_token
+          { \peek_remove_spaces:n { \peek_after:Nw \__plumber_peek_after_space: } }
+          { \__plumber_finish: }
+      }
+  }
+\cs_new_protected:Npn \__plumber_peek_after_space:
+  {
+    \__plumber_if_layer:NTF \l_peek_token
+      { }
+      { \__plumber_finish: \c_space_tl }
+  }
+\cs_new_protected:Npn \__plumber_finish:
+  {
+    \bool_gset_false:N \g__plumber_chain_bool
+    \__plumber_render:
+    \group_end:
+  }
+
+% ---------------------------------------------------------------------------
+% The standalone class (as in the temperleylieb package)
+%
+% With the `tikz' (or `multi=tikzpicture') option, standalone makes every
+% top-level tikzpicture a cropped page of its own, which cannot be done from
+% inside a formula.  So the formula is made the page instead (standalone's
+% `math' handling turns \[...\] and \(...\) into pages), and a diagram inside
+% a formula is marked as nested so that it never tries to start a page.
+% ---------------------------------------------------------------------------
+\cs_new_protected:Npn \__plumber_standalone_nest:
+  {
+    \bool_lazy_and:nnT
+      { \cs_if_exist_p:N \sa@orig@tikzpicture }
+      { \mode_if_math_p: }
+      {
+        \int_compare:nNnT \sa@internal = 0
+          {
+            \msg_warning:nn { plumber } { standalone-formula }
+            \int_incr:N \sa@internal
+          }
+      }
+  }
+\cs_new_protected:Npn \__plumber_standalone_math:
+  {
+    \bool_lazy_all:nT
+      {
+        { \cs_if_exist_p:N \sa@orig@tikzpicture }
+        { \cs_if_exist_p:N \sa@math }
+        { ! \legacy_if_p:n { sa@math } }
+      }
+      { \sa@math }
+  }
+\AtBeginDocument { \__plumber_standalone_math: }
+
+% ---------------------------------------------------------------------------
+% User interface
+% ---------------------------------------------------------------------------
+\NewDocumentCommand \plset { m }
+  { \keys_set:nn { plumber } {#1} }
+
+\NewDocumentCommand \PLlayer { O{} m m }
+  { \__plumber_layer_cmd:nnn {#1} {#2} {#3} }
+
+\cs_if_free:NT \PL
+  {
+    \bool_set_true:N \l__plumber_pl_defined_bool
+    \NewDocumentCommand \PL { O{} m m }
+      { \__plumber_layer_cmd:nnn {#1} {#2} {#3} }
+  }
+
+\NewDocumentCommand \PLgenerators { s O{} }
+  {
+    \group_begin:
+      \keys_set:nn { plumber } {#2}
+      \IfBooleanTF {#1}
+        { \bool_set_true:N \l__plumber_star_bool }
+        { \bool_set_false:N \l__plumber_star_bool }
+      \bool_set_true:N \l__plumber_caption_bool
+      \tl_clear:N \l__plumber_draw_tl
+      \tl_clear:N \l__plumber_names_tl
+      \fp_zero:N \l__plumber_off_fp
+      \bool_set_true:N \l__plumber_first_bool
+      \clist_map_inline:Nn \l__plumber_list_clist
+        {
+          \__plumber_start:
+          \__plumber_add_layer:nn { } {##1}
+          \bool_lazy_and:nnF
+            { \l__plumber_star_bool }
+            { \str_if_eq_p:ee { \seq_item:Nn \l__plumber_layers_seq { 1 } } { id } }
+            {
+              \bool_if:NF \l__plumber_error_bool
+                {
+                  \bool_if:NF \l__plumber_first_bool { \__plumber_separator: }
+                  \bool_set_false:N \l__plumber_first_bool
+                  \__plumber_draw_factor:
+                }
+            }
+        }
+      \__plumber_picture:
+    \group_end:
+  }
+
+\NewExpandableDocumentCommand \PLlastcomponents { }
+  { \int_use:N \g__plumber_components_int }
+\NewExpandableDocumentCommand \PLlastclosed { }
+  { \int_use:N \g__plumber_closed_int }
+\NewExpandableDocumentCommand \PLlastgenus { }
+  { \int_use:N \g__plumber_genus_int }
+\NewExpandableDocumentCommand \PLlasteuler { }
+  { \int_use:N \g__plumber_euler_int }
+\NewExpandableDocumentCommand \PLlastnormalform { }
+  { \str_use:N \g__plumber_nf_str }
+
+% ---------------------------------------------------------------------------
+% TikZ styles (customise with \tikzset or the *style keys)
+% ---------------------------------------------------------------------------
+\ExplSyntaxOff
+\tikzset{
+  pl surface/.style={fill=white},
+  pl outline/.style={line width=0.6pt, line cap=round, line join=round},
+  pl boundary/.style={line width=0.6pt},
+  pl seam/.style={line width=0.4pt},
+  pl hidden/.style={line width=0.4pt, dash pattern=on 1.2pt off 1pt},
+  pl name/.style={anchor=north, inner sep=0pt, yshift=-4pt, font=\small,
+    text height=1.6ex, text depth=0.5ex},
+  pl name right/.style={anchor=west, inner sep=0pt, xshift=6pt, font=\small,
+    text height=1.6ex, text depth=0.5ex},
+  pl separator/.style={anchor=mid, inner sep=0pt},
+  pl coefficient/.style={anchor=mid east, inner sep=0pt},
+  pl error/.style={draw=red, text=red, font=\bfseries},
+}
+\ExplSyntaxOn

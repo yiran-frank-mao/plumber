@@ -1,0 +1,341 @@
+\documentclass[11pt]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage{fancyvrb}
+\usepackage{plumber}
+\usepackage[hidelinks]{hyperref}
+
+\DefineVerbatimEnvironment{code}{Verbatim}
+  {frame=leftline, framerule=1pt, rulecolor=\color{black!25},
+   xleftmargin=1em, fontsize=\small, formatcom=\color{black!80}}
+\newenvironment{result}{\par\smallskip\noindent\hspace*{1em}}{\par\medskip}
+\newcommand\opt[1]{\texttt{#1}}
+\newcommand\cs[1]{\texttt{\textbackslash#1}}
+\newcommand\meta[1]{\ensuremath{\langle}\textit{#1}\ensuremath{\rangle}}
+\newcommand\marg[1]{\texttt{\{}\meta{#1}\texttt{\}}}
+\newcommand\oarg[1]{\texttt{[}\meta{#1}\texttt{]}}
+
+\title{The \textsf{plumber} package\\[2pt]
+  \large Diagrams of 2d TQFT cobordisms in \LaTeX{} with Ti\emph{k}Z}
+\date{Version 1.0, 2026/10/22}
+\author{}
+
+\begin{document}
+\maketitle
+
+\noindent
+A two-dimensional topological quantum field theory is a symmetric monoidal
+functor out of the cobordism category $\mathbf{2Cob}$, whose morphisms are
+surfaces between disjoint unions of circles. Every such surface is a
+composite of a few generators (cylinders, pairs of pants, caps, \dots), and
+this package draws the composite from a description layer by layer:
+\[
+  \PL{2,3}{pant, id}\PL{3,2}{id, copant}
+  \;=\; \PL[reduce]{2,3}{pant, id}\PL{3,2}{id, copant}
+\]
+Each \cs{PL}\marg{m,n}\marg{generators} is one layer, the tensor product of
+the listed generators, going from $m$ to $n$ circles; consecutive \cs{PL}
+commands are composed into one surface. The package keeps track of how many
+circles there are on every seam, places them so that the tubes run smoothly,
+and draws the seams where layers are glued as circles with a solid front and
+a dashed back. With \opt{reduce} it computes the topology of the result and
+draws the normal form instead.
+
+\section{Quick start}
+
+\begin{code}
+\usepackage{plumber}   % loads TikZ
+...
+\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}
+\end{code}
+\begin{result}
+  \PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}
+\end{result}
+
+The first argument is the number of input and output circles of the layer
+(\verb|2,3| means two circles in, three out); it is checked against the
+generators and may also be left empty. The second argument is a
+comma-separated list of generators, read from the first circle to the last
+(top to bottom in horizontal diagrams, left to right in vertical ones).
+\verb|id^3| is short for \verb|id, id, id|, and the same works for any
+generator.
+
+\section{Generators}
+
+\begin{center}
+\begin{tabular}{@{}lllcc@{}}
+  \toprule
+  name & aliases & circles & $\chi$ & symbol \\
+  \midrule
+  \opt{id}     & \opt{cyl}, \opt{cylinder} & $1\to1$ & $0$  & $\mathrm{id}$ \\
+  \opt{pant}   & \opt{pants}              & $1\to2$ & $-1$ & $\Delta$ \\
+  \opt{copant} & \opt{copants}            & $2\to1$ & $-1$ & $\mu$ \\
+  \opt{unit}   & \opt{birth}              & $0\to1$ & $1$  & $\eta$ \\
+  \opt{counit} & \opt{death}              & $1\to0$ & $1$  & $\varepsilon$ \\
+  \opt{swap}   & \opt{twist}              & $2\to2$ & $0$  & $\sigma$ \\
+  \opt{iswap}  & \opt{itwist}             & $2\to2$ & $0$  & $\sigma^{-1}$ \\
+  \opt{pair}   & \opt{ev}                 & $2\to0$ & $0$  & $\beta$ \\
+  \opt{copair} & \opt{coev}               & $0\to2$ & $0$  & $\gamma$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Diagrams are read in the direction of composition: from left to right, or
+from top to bottom with \opt{vertical}. So \opt{pant} splits one circle into
+two and \opt{copant} merges two circles into one. \opt{swap} and \opt{iswap}
+cross the two tubes with the second (respectively the first) tube in front;
+as cobordisms they are equal. \opt{pair} and \opt{copair} are the bent
+cylinders (U-turns) that make $\mathbf{2Cob}$ a rigid category.
+\cs{PLgenerators} draws them all:
+
+\begin{code}
+\PLgenerators[names]
+\PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap}]
+\end{code}
+\begin{result}
+  \PLgenerators[names]
+\end{result}
+\begin{result}
+  \PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap}]
+\end{result}
+
+\cs{PLgenerators}\oarg{options} draws the generators in the key \opt{list}
+(by default all of them except \opt{iswap}) next to each other; the starred
+form leaves out \opt{id}.
+
+\section{The features}
+
+\subsection{Composition}
+
+Consecutive \cs{PL} commands form one diagram (spaces and single line breaks
+between them are allowed; an empty line or any other token ends the
+diagram). The output circles of one layer are glued to the input circles of
+the next one, so the counts must agree. Options can be given to any \cs{PL}
+of the chain and apply to the whole diagram.
+
+\begin{code}
+\[ \PL{1,2}{pant}\PL{2,3}{pant, id} = \PL{1,2}{pant}\PL{2,3}{id, pant}
+   \qquad
+   \PL{1,2}{id, unit}\PL{2,1}{copant} = \PL{1,1}{id} \]
+\end{code}
+\begin{result}
+  \( \PL{1,2}{pant}\PL{2,3}{pant, id} = \PL{1,2}{pant}\PL{2,3}{id, pant}
+     \qquad
+     \PL{1,2}{id, unit}\PL{2,1}{copant} = \PL{1,1}{id} \)
+\end{result}
+
+\begin{code}
+\[ \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
+   \qquad
+   \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant^2} \]
+\end{code}
+\begin{result}
+  \( \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
+     \qquad
+     \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant^2} \)
+\end{result}
+
+If the circles do not match, or a generator is unknown, the package reports
+an error that names the offending layer and draws a red {\color{red}\bfseries
+??} instead of the diagram. Should \cs{PL} already be defined by another
+package, \cs{PLlayer} is a synonym with the same arguments (the two can be
+mixed in a chain).
+
+\subsection{Horizontal or vertical}
+
+Diagrams are \opt{horizontal} by default: composition runs from left to
+right and the first circle is on top. With \opt{vertical}, composition runs
+from top to bottom and the first circle is on the left. \opt{reverse} flips
+the direction of composition (right to left, or bottom to top). The circles
+at the start of the diagram are seen from the outside and drawn whole; all
+other seams show their front half solid and their back half dashed.
+\opt{orientation=horizontal} and \opt{orientation=vertical} are long forms,
+and \cs{plset}\marg{options} changes the defaults for the rest of the group.
+
+\begin{code}
+\PL[vertical]{2,3}{pant, id}\PL{3,2}{id, copant}
+\PL[vertical, reverse]{2,3}{pant, id}\PL{3,2}{id, copant}
+\PL[reverse]{2,3}{pant, id}\PL{3,2}{id, copant}
+\end{code}
+\begin{result}
+  \PL[vertical]{2,3}{pant, id}\PL{3,2}{id, copant}\qquad
+  \PL[vertical, reverse]{2,3}{pant, id}\PL{3,2}{id, copant}\qquad
+  \PL[reverse]{2,3}{pant, id}\PL{3,2}{id, copant}
+\end{result}
+
+\subsection{Reduced form}
+
+Up to diffeomorphism, a cobordism is determined by which boundary circles
+lie on the same connected component and by the genus of every component.
+With \opt{reduce}, the package computes these invariants (by tracking the
+glued circles and adding up Euler characteristics) and draws the normal form:
+first the input circles are permuted so that every component gets
+neighbouring circles, then each component merges its inputs with a tree of
+\opt{copant}s, gets its handles as \opt{pant}/\opt{copant} pairs, and splits
+into its outputs with a tree of \opt{pant}s, and finally the outputs are
+permuted into place. Components with no inputs start with a \opt{unit},
+components without outputs end with a \opt{counit}, and the two kinds of
+cylinders that bend back (two inputs or two outputs, genus~0) become
+\opt{pair} and \opt{copair}.
+
+\begin{code}
+\[ \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
+   = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant} \]
+\[ \PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+   = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant} \]
+\end{code}
+\begin{result}
+  \( \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
+     = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant} \)
+\end{result}
+\begin{result}
+  \( \PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+     = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant} \)
+\end{result}
+
+Closed components (surfaces without boundary) are drawn as separate factors,
+a sphere or a surface with handles, before the rest. With
+\opt{closed=factor} they are written as numbers instead: a closed surface of
+genus $g$ evaluates to $Z(\Sigma_g)$ in a TQFT $Z$, and the key
+\opt{closed value} sets this expression (\verb|#1| is the genus). The
+\opt{separator} key puts a symbol between the factors.
+
+\begin{code}
+\[ \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit}
+   = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit} \]
+\[ \PL{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
+   = \PL[reduce, separator=\sqcup]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
+   = \PL[reduce, closed=factor]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit} \]
+\[ \PL{1,2}{id, unit}\PL{2,3}{id, pant}\PL{3,2}{id, copant}\PL{2,1}{id, counit}
+   = \PL[reduce, closed=factor, closed value={\lambda_{#1}}]
+       {1,2}{id, unit}\PL{2,3}{id, pant}\PL{3,2}{id, copant}\PL{2,1}{id, counit} \]
+\end{code}
+\begin{result}
+  \( \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit}
+     = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit} \)
+\end{result}
+\begin{result}
+  \( \PL{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
+     = \PL[reduce, separator=\sqcup]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
+     = \PL[reduce, closed=factor]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit} \)
+\end{result}
+\begin{result}
+  \( \PL{1,2}{id, unit}\PL{2,3}{id, pant}\PL{3,2}{id, copant}\PL{2,1}{id, counit}
+     = \PL[reduce, closed=factor, closed value={\lambda_{#1}}]
+         {1,2}{id, unit}\PL{2,3}{id, pant}\PL{3,2}{id, copant}\PL{2,1}{id, counit} \)
+\end{result}
+
+After every diagram (reduced or not) the following macros expand to the
+invariants of the surface that was just drawn: \cs{PLlastcomponents} (number
+of connected components), \cs{PLlastclosed} (how many of them are closed),
+\cs{PLlastgenus} (sum of the genera), \cs{PLlasteuler} (Euler
+characteristic) and \cs{PLlastnormalform} (the normal form as a string of
+\cs{PL} commands, closed factors separated by \verb|\cdot|). For the last
+example: \PLlastcomponents{} components, \PLlastclosed{} closed, genus
+\PLlastgenus, $\chi = \PLlasteuler$, and the normal form is
+\begin{center}\ttfamily\small\PLlastnormalform\end{center}
+
+\subsection{Names}
+
+The key \opt{names} writes the symbol of each layer under it (or to its
+right in vertical diagrams). The symbols are set with \opt{symbols}, which
+takes a key--value list of generator names and math material.
+
+\begin{code}
+\PL[names]{2,3}{pant, id}\PL{3,2}{id, copant}
+\PL[vertical, names, symbols={pant=m^*, copant=m}]{2,3}{pant, id}\PL{3,2}{id, copant}
+\end{code}
+\begin{result}
+  \PL[names]{2,3}{pant, id}\PL{3,2}{id, copant}\qquad
+  \PL[vertical, names, symbols={pant=m^*, copant=m}]{2,3}{pant, id}\PL{3,2}{id, copant}
+\end{result}
+
+\section{Appearance}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+  \toprule
+  key & default & meaning \\
+  \midrule
+  \opt{circle sep}  & \opt{1}     & distance between neighbouring circles (cm) \\
+  \opt{radius}      & \opt{0.3}   & radius of a circle (cm) \\
+  \opt{length}      & \opt{1.2}   & length of a layer (cm) \\
+  \opt{perspective} & \opt{0.3}   & width of the ellipses relative to their height \\
+  \opt{crotch}      & \opt{0.6}   & how far the crotch of a pair of pants reaches back \\
+  \opt{gap}         & \opt{0.4}   & space between the factors of a reduced diagram (cm) \\
+  \opt{seams}       & \opt{true}  & draw the circles where layers are glued \\
+  \opt{smooth}      & \opt{4}     & maximal number of layout passes \\
+  \opt{scale}       & \opt{1}     & scales the picture (not the text) \\
+  \opt{baseline}    & \opt{-0.5ex}& vertical alignment, as in TikZ \\
+  \opt{tikz}        &             & further options for the \texttt{tikzpicture} \\
+  \opt{fill}        & \opt{white} & colour of the surface \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+The drawing uses the TikZ styles \opt{pl surface} (the white area of every
+piece), \opt{pl outline}, \opt{pl boundary} (whole circles), \opt{pl seam}
+(front half of a seam), \opt{pl hidden} (its dashed back half), \opt{pl name},
+\opt{pl name right}, \opt{pl separator}, \opt{pl coefficient} and
+\opt{pl error}. The keys \opt{surface style}, \opt{outline style},
+\opt{boundary style}, \opt{seam style} and \opt{hidden style} append to the
+corresponding styles.
+
+\begin{code}
+\PL[fill=blue!10, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}
+\PL[seams=false, outline style={thick, blue!60!black}]{1,2}{pant}\PL{2,1}{copant}
+\PL[hidden style={densely dotted}, scale=0.7]{1,2}{pant}\PL{2,1}{copant}
+\end{code}
+\begin{result}
+  \PL[fill=blue!10, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}\qquad
+  \PL[seams=false, outline style={thick, blue!60!black}]{1,2}{pant}\PL{2,1}{copant}\qquad
+  \PL[hidden style={densely dotted}, scale=0.7]{1,2}{pant}\PL{2,1}{copant}
+\end{result}
+
+\section{Layout}
+
+The numbers of circles change from seam to seam, so their positions are
+computed. Every generator says where it would like the circles on the
+neighbouring seams to be: a cylinder keeps the position, a pair of pants puts
+its legs half a circle distance on either side of the waist, a swap exchanges
+its two positions, and generators without inputs (\opt{unit}, \opt{copair})
+attach to their neighbours with a weak preference. On every seam the
+positions are the best least-squares fit to these wishes under the condition
+that neighbouring circles are at least \opt{circle sep} apart (an isotonic
+regression), and a few sweeps back and forth through the diagram let both
+neighbours of a seam have their say. The result is the familiar picture:
+straight cylinders stay straight and pairs of pants are symmetric whenever
+possible.
+
+\section{The standalone class}
+
+With \verb|\documentclass[tikz]{standalone}| every TikZ picture becomes a
+page of its own. Diagrams inside \verb|\[...\]| and \verb|\(...\)| are
+handled like in the \textsf{temperleylieb} package: the whole formula becomes
+one cropped page. Diagrams outside formulas are pages of their own. Other
+math environments (\verb|$...$|, \verb|equation|) cannot be turned into
+pages; the package warns and draws the diagram inline, so use
+\verb|\[...\]| there, or the class option \opt{varwidth}.
+
+\section{Summary of commands}
+
+\begin{description}
+  \item[\cs{PL}\oarg{options}\marg{m,n}\marg{generators}] One layer; a
+    chain of layers is one diagram. \cs{PLlayer} is a synonym.
+  \item[\cs{PLgenerators}\texttt{*}\oarg{options}] The generators in
+    \opt{list} side by side.
+  \item[\cs{plset}\marg{options}] Sets options for the current group.
+  \item[\cs{PLlastcomponents}, \cs{PLlastclosed}, \cs{PLlastgenus},
+    \cs{PLlasteuler}] Invariants of the last diagram.
+  \item[\cs{PLlastnormalform}] Normal form of the last diagram.
+\end{description}
+
+The package is written in \textsf{expl3} and needs a \LaTeX{} kernel from
+2020-10 or newer and TikZ. It is distributed under the \LaTeX{} Project
+Public License~1.3c.
+
+\end{document}
