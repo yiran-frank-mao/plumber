@@ -13,7 +13,7 @@ layer-by-layer description:
 
 This will give
 
-![the_Frobenius_relation](examples/the_Frobenius_relation.pdf)
+![the_Frobenius_relation](examples/the_Frobenius_relation.svg)
 
 `\PL{m,n}{...}` is one layer going from `m` to `n` circles, the tensor product of the listed
 generators. Consecutive `\PL` commands are composed into one surface. The package places the
