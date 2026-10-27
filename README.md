@@ -11,6 +11,10 @@ layer-by-layer description:
    = \PL[reduce]{2,3}{pant, id}\PL{3,2}{id, copant} \]
 ```
 
+This will give
+
+![the_Frobenius_relation](examples/the_Frobenius_relation.pdf)
+
 `\PL{m,n}{...}` is one layer going from `m` to `n` circles, the tensor product of the listed
 generators. Consecutive `\PL` commands are composed into one surface. The package places the
 circles on every seam and draws each seam as a circle with a solid front half and a dashed back
