@@ -50,10 +50,10 @@ draws the normal form instead.
 \begin{code}
 \usepackage{plumber}   % loads TikZ
 ...
-\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}
+\PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}
 \end{code}
 \begin{result}
-  \PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}
+  \PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}
 \end{result}
 
 The first argument is the number of input and output circles of the layer
@@ -77,8 +77,8 @@ generator.
   \opt{unit}   & \opt{birth}              & $0\to1$ & $1$  & $\eta$ \\
   \opt{counit} & \opt{death}              & $1\to0$ & $1$  & $\varepsilon$ \\
   \opt{swap}   &                          & $2\to2$ & $0$  & $\sigma$ \\
-  \opt{iswap}  &                          & $2\to2$ & $0$  & $\sigma^{-1}$ \\
   \opt{twist}  &                          & $2\to2$ & $0$  & $\tau$ \\
+  \opt{itwist} &                          & $2\to2$ & $0$  & $\tau^{-1}$ \\
   \opt{pair}   & \opt{ev}                 & $2\to0$ & $0$  & $\beta$ \\
   \opt{copair} & \opt{coev}               & $0\to2$ & $0$  & $\gamma$ \\
   \bottomrule
@@ -87,27 +87,27 @@ generator.
 
 Diagrams are read in the direction of composition: from left to right, or
 from top to bottom with \opt{vertical}. So \opt{pant} splits one circle into
-two and \opt{copant} merges two circles into one. \opt{swap} and \opt{iswap}
-cross the two tubes with the second (respectively the first) tube in front,
-while \opt{twist} draws the crossing without hiding anything, so that no
-tube is in front; as cobordisms all three are equal. \opt{pair} and \opt{copair} are the bent
-cylinders (U-turns) that make $\mathbf{2Cob}$ a rigid category.
+two and \opt{copant} merges two circles into one. \opt{swap} exchanges two
+circles and draws the crossing without hiding anything, so that no tube is in
+front, while \opt{twist} and \opt{itwist} cross the two tubes with the second
+(respectively the first) tube in front; as cobordisms all three are equal.
+\opt{pair} and \opt{copair} are the bent cylinders (U-turns) that make $\mathbf{2Cob}$ a rigid category.
 \cs{PLgenerators} draws them all:
 
 \begin{code}
 \PLgenerators[names]
-\PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap, twist}]
+\PLgenerators*[vertical, names, list={pant, copant, unit, counit, twist, itwist}]
 \end{code}
 \begin{result}
   \PLgenerators[names]
 \end{result}
 \begin{result}
-  \PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap, twist}]
+  \PLgenerators*[vertical, names, list={pant, copant, unit, counit, twist, itwist}]
 \end{result}
 
 \cs{PLgenerators}\oarg{options} draws the generators in the key \opt{list}
-(by default all of them except \opt{iswap} and \opt{twist}) next to each other; the starred
-form leaves out \opt{id}.
+(by default all of them except \opt{twist} and \opt{itwist}) next to each
+other; the starred form leaves out \opt{id}.
 
 \section{The features}
 
@@ -133,12 +133,12 @@ of the chain and apply to the whole diagram.
 \begin{code}
 \[ \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
    \qquad
-   \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant^2} \]
+   \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant^2} \]
 \end{code}
 \begin{result}
   \( \PL{1,3}{id, copair}\PL{3,1}{pair, id} = \PL{1,1}{id}
      \qquad
-     \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant^2} \)
+     \PL{2,2}{id^2}\PL{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant^2} \)
 \end{result}
 
 If the circles do not match, or a generator is unknown, the package reports
@@ -183,7 +183,7 @@ permuted into place. Components with no inputs start with a \opt{unit},
 components without outputs end with a \opt{counit}, and the two kinds of
 cylinders that bend back (two inputs or two outputs, genus~0) become
 \opt{pair} and \opt{copair}. The permutations are made of \opt{swap}s; the
-key \opt{crossing} (\opt{swap}, \opt{iswap} or \opt{twist}) chooses another
+key \opt{crossing} (\opt{swap}, \opt{twist} or \opt{itwist}) chooses another
 crossing.
 
 \begin{code}
@@ -196,18 +196,18 @@ crossing.
 \end{result}
 
 \begin{code}
-\[ \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
-   = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant} \]
-\[ \PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
-   = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant} \]
+\[ \PL{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant}
+   = \PL[reduce]{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant} \]
+\[ \PL{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant}
+   = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant} \]
 \end{code}
 \begin{result}
-  \( \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
-     = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant} \)
+  \( \PL{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant}
+     = \PL[reduce]{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant} \)
 \end{result}
 \begin{result}
-  \( \PL{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
-     = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant} \)
+  \( \PL{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant}
+     = \PL[reduce]{2,4}{pant, pant}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant} \)
 \end{result}
 
 Closed components (surfaces without boundary) are drawn as separate factors,
@@ -218,8 +218,8 @@ genus $g$ evaluates to $Z(\Sigma_g)$ in a TQFT $Z$, and the key
 \opt{separator} key puts a symbol between the factors.
 
 \begin{code}
-\[ \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit}
-   = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit} \]
+\[ \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}\PL{1,0}{counit}
+   = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}\PL{1,0}{counit} \]
 \[ \PL{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
    = \PL[reduce, separator=\sqcup]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
    = \PL[reduce, closed=factor]{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit} \]
@@ -228,8 +228,8 @@ genus $g$ evaluates to $Z(\Sigma_g)$ in a TQFT $Z$, and the key
        {1,2}{id, unit}\PL{2,3}{id, pant}\PL{3,2}{id, copant}\PL{2,1}{id, counit} \]
 \end{code}
 \begin{result}
-  \( \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit}
-     = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{swap}\PL{2,1}{copant}\PL{1,0}{counit} \)
+  \( \PL{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}\PL{1,0}{counit}
+     = \PL[reduce]{0,1}{unit}\PL{1,2}{pant}\PL{2,2}{twist}\PL{2,1}{copant}\PL{1,0}{counit} \)
 \end{result}
 \begin{result}
   \( \PL{0,3}{unit, copair}\PL{3,1}{id, pair}\PL{1,0}{counit}
@@ -314,7 +314,7 @@ corresponding styles.
 The numbers of circles change from seam to seam, so their positions are
 computed. Every generator says where it would like the circles on the
 neighbouring seams to be: a cylinder keeps the position, a pair of pants puts
-its legs half a circle distance on either side of the waist, a swap exchanges
+its legs half a circle distance on either side of the waist, a crossing exchanges
 its two positions, and generators without inputs (\opt{unit}, \opt{copair})
 attach to their neighbours with a weak preference. On every seam the
 positions are the best least-squares fit to these wishes under the condition

@@ -22,7 +22,7 @@ ROOT = os.path.dirname(HERE)
 
 ARITY = {
     "id": (1, 1), "pant": (1, 2), "copant": (2, 1), "unit": (0, 1),
-    "counit": (1, 0), "swap": (2, 2), "iswap": (2, 2), "twist": (2, 2), "pair": (2, 0),
+    "counit": (1, 0), "swap": (2, 2), "twist": (2, 2), "itwist": (2, 2), "pair": (2, 0),
     "copair": (0, 2),
 }
 CHI = {"pant": -1, "copant": -1, "unit": 1, "counit": 1}
@@ -57,7 +57,7 @@ def invariants(factors):
                 outs = [(k, o + t) for t in range(b)]
                 for node in ins + outs:
                     find(node)
-                if g in ("swap", "iswap", "twist"):
+                if g in ("swap", "twist", "itwist"):
                     union(ins[0], outs[1])
                     union(ins[1], outs[0])
                 else:

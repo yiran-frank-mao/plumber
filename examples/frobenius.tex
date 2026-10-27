@@ -42,19 +42,19 @@ equation is a chain of \verb|\PL| layers; the last column shows what
 
 \rel{Commutativity and cocommutativity}
 \[
-  \PL{2,2}{swap}\PL{2,1}{copant} = \PL{2,1}{copant}
+  \PL{2,2}{twist}\PL{2,1}{copant} = \PL{2,1}{copant}
   \qquad
-  \PL{1,2}{pant}\PL{2,2}{swap} = \PL{1,2}{pant}
+  \PL{1,2}{pant}\PL{2,2}{twist} = \PL{1,2}{pant}
   \qquad
-  \PL{2,2}{swap}\PL{2,2}{swap} = \PL{2,2}{id^2}
+  \PL{2,2}{twist}\PL{2,2}{twist} = \PL{2,2}{id^2}
 \]
 
-\rel{Naturality of the swap}
+\rel{Naturality of the twist}
 \[
-  \PL{2,3}{pant, id}\PL{3,3}{id, swap}\PL{3,3}{swap, id}
-  = \PL{2,2}{swap}\PL{2,3}{id, pant}
+  \PL{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id}
+  = \PL{2,2}{twist}\PL{2,3}{id, pant}
   \qquad
-  \PL[reduce]{2,3}{pant, id}\PL{3,3}{id, swap}\PL{3,3}{swap, id}
+  \PL[reduce]{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id}
 \]
 
 \rel{Duality: the snake (zig-zag) identities}
@@ -69,11 +69,11 @@ equation is a chain of \verb|\PL| layers; the last column shows what
 
 \rel{Composites with crossings}
 \[
-  \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
-  = \PL[reduce]{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
+  \PL{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant}
+  = \PL[reduce]{1,3}{copair, id}\PL{3,3}{twist, id}\PL{3,2}{id, copant}
   \quad
-  \PL{2,2}{iswap}\PL{2,4}{copair, id, id}\PL{4,4}{id, iswap, id}\PL{4,2}{pair, id, id}
-  = \PL[reduce]{2,2}{iswap}\PL{2,4}{copair, id, id}\PL{4,4}{id, iswap, id}\PL{4,2}{pair, id, id}
+  \PL{2,2}{itwist}\PL{2,4}{copair, id, id}\PL{4,4}{id, itwist, id}\PL{4,2}{pair, id, id}
+  = \PL[reduce]{2,2}{itwist}\PL{2,4}{copair, id, id}\PL{4,4}{id, itwist, id}\PL{4,2}{pair, id, id}
 \]
 
 \rel{Closed surfaces}
@@ -112,10 +112,10 @@ equation is a chain of \verb|\PL| layers; the last column shows what
 
 \rel{A genus 2 surface with three inputs and two outputs, and its normal form}
 \[
-  \PL[names]{3,4}{pant, id, id}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+  \PL[names]{3,4}{pant, id, id}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant}
     \PL{2,3}{pant, id}\PL{3,2}{id, copant}\PL{2,3}{pant, id}\PL{3,2}{id, copant}
   \;=\;
-  \PL[reduce, names]{3,4}{pant, id, id}\PL{4,4}{id, swap, id}\PL{4,2}{copant, copant}
+  \PL[reduce, names]{3,4}{pant, id, id}\PL{4,4}{id, twist, id}\PL{4,2}{copant, copant}
     \PL{2,3}{pant, id}\PL{3,2}{id, copant}\PL{2,3}{pant, id}\PL{3,2}{id, copant}
 \]
 

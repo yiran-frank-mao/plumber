@@ -32,8 +32,8 @@
 \msg_new:nnn { plumber } { unknown-generator }
   {
     Unknown~generator~`#1'~in~layer~#2.~
-    Known~generators:~id,~pant,~copant,~unit,~counit,~swap,~iswap,~
-    twist,~pair,~copair~(aliases:~cyl,~pants,~copants,~birth,~death,~
+    Known~generators:~id,~pant,~copant,~unit,~counit,~swap,~twist,~
+    itwist,~pair,~copair~(aliases:~cyl,~pants,~copants,~birth,~death,~
     ev,~coev).~Write~`id^3'~for~three~copies.
   }
 \msg_new:nnn { plumber } { bad-item }
@@ -75,29 +75,29 @@
 \prop_const_from_keyval:Nn \c__plumber_in_prop
   {
     id = 1 , pant = 1 , copant = 2 , unit = 0 , counit = 1 ,
-    swap = 2 , iswap = 2 , twist = 2 , pair = 2 , copair = 0 ,
+    twist = 2 , itwist = 2 , swap = 2 , pair = 2 , copair = 0 ,
   }
 \prop_const_from_keyval:Nn \c__plumber_out_prop
   {
     id = 1 , pant = 2 , copant = 1 , unit = 1 , counit = 0 ,
-    swap = 2 , iswap = 2 , twist = 2 , pair = 0 , copair = 2 ,
+    twist = 2 , itwist = 2 , swap = 2 , pair = 0 , copair = 2 ,
   }
 \prop_const_from_keyval:Nn \c__plumber_chi_prop
   {
     id = 0 , pant = -1 , copant = -1 , unit = 1 , counit = 1 ,
-    swap = 0 , iswap = 0 , twist = 0 , pair = 0 , copair = 0 ,
+    twist = 0 , itwist = 0 , swap = 0 , pair = 0 , copair = 0 ,
   }
 \prop_const_from_keyval:Nn \c__plumber_mirror_prop
   {
     id = id , pant = copant , copant = pant , unit = counit ,
-    counit = unit , swap = swap , iswap = iswap , twist = twist ,
+    counit = unit , twist = twist , itwist = itwist , swap = swap ,
     pair = copair ,
     copair = pair ,
   }
 \prop_const_from_keyval:Nn \c__plumber_alias_prop
   {
     id = id , pant = pant , copant = copant , unit = unit ,
-    counit = counit , swap = swap , iswap = iswap , twist = twist ,
+    counit = counit , twist = twist , itwist = itwist , swap = swap ,
     pair = pair ,
     copair = copair ,
     cyl = id , cylinder = id , pants = pant , copants = copant ,
@@ -283,7 +283,7 @@
 
     reduce .bool_set:N = \l__plumber_reduce_bool ,
     reduce .default:n = true ,
-    crossing .choices:nn = { swap , iswap , twist }
+    crossing .choices:nn = { swap , twist , itwist }
       { \tl_set_eq:NN \l__plumber_crossing_tl \l_keys_choice_tl } ,
     closed .choice: ,
     closed / draw .code:n = \bool_set_true:N \l__plumber_closed_draw_bool ,
@@ -353,7 +353,7 @@
 \prop_put_from_keyval:Nn \l__plumber_symbols_prop
   {
     id = \mathrm{id} , pant = \Delta , copant = \mu , unit = \eta ,
-    counit = \varepsilon , swap = \sigma , iswap = \sigma^{-1} , twist = \tau ,
+    counit = \varepsilon , swap = \sigma , twist = \tau , itwist = \tau^{-1} ,
     pair = \beta , copair = \gamma ,
   }
 
@@ -572,17 +572,17 @@
                 \__plumber_push:nn
                   { ( \__plumber_src:n { 0 } + \__plumber_src:n { 1 } ) / 2 } { 1 }
               }
-            { swap }
-              {
-                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
-                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
-              }
-            { iswap }
-              {
-                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
-                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
-              }
             { twist }
+              {
+                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
+                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
+              }
+            { itwist }
+              {
+                \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
+                \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
+              }
+            { swap }
               {
                 \__plumber_push:nn { \__plumber_src:n { 1 } } { 1 }
                 \__plumber_push:nn { \__plumber_src:n { 0 } } { 1 }
@@ -847,19 +847,19 @@
 \cs_new_protected:Npn \__plumber_draw_id:
   { \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qa_tl } }
 % The tube drawn second passes in front.
-\cs_new_protected:Npn \__plumber_draw_swap:
+\cs_new_protected:Npn \__plumber_draw_twist:
   {
     \__plumber_band:nn { \l__plumber_pb_tl } { \l__plumber_qa_tl }
     \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qb_tl }
   }
-\cs_new_protected:Npn \__plumber_draw_iswap:
+\cs_new_protected:Npn \__plumber_draw_itwist:
   {
     \__plumber_band:nn { \l__plumber_pa_tl } { \l__plumber_qb_tl }
     \__plumber_band:nn { \l__plumber_pb_tl } { \l__plumber_qa_tl }
   }
 % A crossing without over and under: both tubes are filled before either
 % outline is drawn, so all four outlines stay visible.
-\cs_new_protected:Npn \__plumber_draw_twist:
+\cs_new_protected:Npn \__plumber_draw_swap:
   {
     \__plumber_band_paths:nn { \l__plumber_pb_tl } { \l__plumber_qa_tl }
     \tl_set_eq:NN \l__plumber_fillb_tl \l__plumber_fill_tl
@@ -1294,7 +1294,7 @@
 % Analysis: connected components, genus and the normal form
 %
 % The nodes are the circles "k.i" (circle i on seam k).  Every generator
-% glues its circles into one piece (a swap gives two cylinders); the Euler
+% glues its circles into one piece (a crossing gives two cylinders); the Euler
 % characteristic of a component is the sum over its pieces, and a connected
 % surface with b boundary circles has genus (2 - chi - b) / 2.
 % ---------------------------------------------------------------------------
@@ -1322,9 +1322,9 @@
   {
     \bool_lazy_any:nTF
       {
-        { \str_if_eq_p:nn {#2} { swap } }
-        { \str_if_eq_p:nn {#2} { iswap } }
         { \str_if_eq_p:nn {#2} { twist } }
+        { \str_if_eq_p:nn {#2} { itwist } }
+        { \str_if_eq_p:nn {#2} { swap } }
       }
       {
         \__plumber_union:nn
