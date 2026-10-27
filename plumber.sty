@@ -169,6 +169,8 @@
 \bool_new:N \l__plumber_closed_draw_bool
 \bool_new:N \l__plumber_error_bool
 \bool_new:N \l__plumber_item_error_bool
+\bool_new:N \l__plumber_unknown_bool
+\bool_new:N \l__plumber_skip_seam_bool
 \bool_new:N \l__plumber_mirror_bool
 \bool_new:N \l__plumber_first_bool
 \bool_new:N \l__plumber_layer_names_bool
@@ -376,6 +378,7 @@
     \int_zero:N \l__plumber_layer_int
     \int_zero:N \l__plumber_prev_int
     \bool_set_false:N \l__plumber_error_bool
+    \bool_set_false:N \l__plumber_unknown_bool
   }
 
 \cs_new_protected:Npn \__plumber_add_layer:nn #1#2
@@ -386,6 +389,10 @@
     \int_zero:N \l__plumber_b_int
     \bool_set_false:N \l__plumber_item_error_bool
     \clist_map_inline:nn {#2} { \__plumber_parse_item:n {##1} }
+    \bool_set_eq:NN \l__plumber_skip_seam_bool \l__plumber_unknown_bool
+    \bool_set_eq:NN \l__plumber_unknown_bool \l__plumber_item_error_bool
+    \bool_if:NT \l__plumber_item_error_bool
+      { \__plumber_declared_counts:n {#1} }
     \bool_lazy_or:nnF
       { \tl_if_blank_p:n {#1} } { \l__plumber_item_error_bool }
       {
@@ -416,7 +423,9 @@
               { \int_use:N \l__plumber_layer_int }
           }
       }
-    \int_compare:nNnT \l__plumber_layer_int > 1
+    \bool_lazy_and:nnT
+      { \int_compare_p:nNn \l__plumber_layer_int > 1 }
+      { ! ( \l__plumber_skip_seam_bool || \l__plumber_unknown_bool ) }
       {
         \int_compare:nNnF \l__plumber_prev_int = \l__plumber_a_int
           {
@@ -430,6 +439,19 @@
       }
     \int_set_eq:NN \l__plumber_prev_int \l__plumber_b_int
     \seq_put_right:NV \l__plumber_layers_seq \l__plumber_layer_clist
+  }
+
+% After an unreadable generator the counts are only known if the layer
+% declares them; otherwise the seams on both sides are not checked.
+\cs_new_protected:Npn \__plumber_declared_counts:n #1
+  {
+    \exp_args:NNe \regex_extract_once:NnNT \c__plumber_arity_regex
+      { \tl_to_str:n {#1} } \l__plumber_match_seq
+      {
+        \int_set:Nn \l__plumber_a_int { \seq_item:Nn \l__plumber_match_seq { 2 } }
+        \int_set:Nn \l__plumber_b_int { \seq_item:Nn \l__plumber_match_seq { 3 } }
+        \bool_set_false:N \l__plumber_unknown_bool
+      }
   }
 
 \cs_new_protected:Npn \__plumber_parse_item:n #1
