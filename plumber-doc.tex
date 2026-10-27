@@ -3,6 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{amsmath,amssymb}
+\usepackage{libertinus}
 \usepackage{booktabs}
 \usepackage{parskip}
 \usepackage{fancyvrb}
@@ -21,7 +22,7 @@
 
 \title{The \textsf{plumber} package\\[2pt]
   \large Diagrams of 2d TQFT cobordisms in \LaTeX{} with Ti\emph{k}Z}
-\date{Version 1.0, 2026/10/22}
+\date{Version 1.1, 2026/10/27}
 \author{}
 
 \begin{document}
@@ -29,7 +30,7 @@
 
 \noindent
 A two-dimensional topological quantum field theory is a symmetric monoidal
-functor out of the cobordism category $\mathbf{2Cob}$, whose morphisms are
+functor out of the cobordism category $\mathsf{2Cob}$, whose morphisms are
 surfaces between disjoint unions of circles. Every such surface is a
 composite of a few generators (cylinders, pairs of pants, caps, \dots), and
 this package draws the composite from a description layer by layer:
@@ -91,7 +92,7 @@ two and \opt{copant} merges two circles into one. \opt{swap} exchanges two
 circles and draws the crossing without hiding anything, so that no tube is in
 front, while \opt{twist} and \opt{itwist} cross the two tubes with the second
 (respectively the first) tube in front; as cobordisms all three are equal.
-\opt{pair} and \opt{copair} are the bent cylinders (U-turns) that make $\mathbf{2Cob}$ a rigid category.
+\opt{pair} and \opt{copair} are the bent cylinders (U-turns) that make $\mathsf{2Cob}$ a rigid category.
 \cs{PLgenerators} draws them all:
 
 \begin{code}
