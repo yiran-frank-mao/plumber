@@ -21,12 +21,13 @@ half.
 - **Composition**: write a chain like `\PL{2,3}{pant, id}\PL{3,2}{id, copant}`.
   The numbers of circles may change from layer to layer, and the counts are checked.
   Generators: `id`, `pant` (1→2), `copant` (2→1), `unit` (0→1), `counit` (1→0), `swap`/`iswap`
-  (crossings, the second/first tube in front), `pair` (2→0) and `copair` (0→2), with aliases such as
-  `cyl`, `birth`, `death`, `twist`, `ev`, `coev`. `id^3` means three copies.
+  (crossings, the second/first tube in front), `twist` (a crossing with no tube in front), `pair` (2→0)
+  and `copair` (0→2), with aliases such as `cyl`, `birth`, `death`, `ev`, `coev`. `id^3` means three copies.
 - **Horizontal or vertical**: `horizontal` (the default, read left to right) or `vertical` (read top to
   bottom). `reverse` flips the direction.
 - **Reduced form**: `reduce` computes the connected components and their genera, then draws the
-  normal form: permute, merge, add handles, split, and permute again.
+  normal form: permute, merge, add handles, split, and permute again (`crossing=twist` uses twists for the
+  permutations).
   Closed components are drawn as separate factors, or written as `Z(\Sigma_g)` with
   `closed=factor` (customisable with `closed value`). `\PLlastcomponents`, `\PLlastgenus`,
   `\PLlasteuler`, `\PLlastclosed` and `\PLlastnormalform` return the invariants and the normal form.
