@@ -76,8 +76,9 @@ generator.
   \opt{copant} & \opt{copants}            & $2\to1$ & $-1$ & $\mu$ \\
   \opt{unit}   & \opt{birth}              & $0\to1$ & $1$  & $\eta$ \\
   \opt{counit} & \opt{death}              & $1\to0$ & $1$  & $\varepsilon$ \\
-  \opt{swap}   & \opt{twist}              & $2\to2$ & $0$  & $\sigma$ \\
-  \opt{iswap}  & \opt{itwist}             & $2\to2$ & $0$  & $\sigma^{-1}$ \\
+  \opt{swap}   &                          & $2\to2$ & $0$  & $\sigma$ \\
+  \opt{iswap}  &                          & $2\to2$ & $0$  & $\sigma^{-1}$ \\
+  \opt{twist}  &                          & $2\to2$ & $0$  & $\tau$ \\
   \opt{pair}   & \opt{ev}                 & $2\to0$ & $0$  & $\beta$ \\
   \opt{copair} & \opt{coev}               & $0\to2$ & $0$  & $\gamma$ \\
   \bottomrule
@@ -87,24 +88,25 @@ generator.
 Diagrams are read in the direction of composition: from left to right, or
 from top to bottom with \opt{vertical}. So \opt{pant} splits one circle into
 two and \opt{copant} merges two circles into one. \opt{swap} and \opt{iswap}
-cross the two tubes with the second (respectively the first) tube in front;
-as cobordisms they are equal. \opt{pair} and \opt{copair} are the bent
+cross the two tubes with the second (respectively the first) tube in front,
+while \opt{twist} draws the crossing without hiding anything, so that no
+tube is in front; as cobordisms all three are equal. \opt{pair} and \opt{copair} are the bent
 cylinders (U-turns) that make $\mathbf{2Cob}$ a rigid category.
 \cs{PLgenerators} draws them all:
 
 \begin{code}
 \PLgenerators[names]
-\PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap}]
+\PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap, twist}]
 \end{code}
 \begin{result}
   \PLgenerators[names]
 \end{result}
 \begin{result}
-  \PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap}]
+  \PLgenerators*[vertical, names, list={pant, copant, unit, counit, iswap, twist}]
 \end{result}
 
 \cs{PLgenerators}\oarg{options} draws the generators in the key \opt{list}
-(by default all of them except \opt{iswap}) next to each other; the starred
+(by default all of them except \opt{iswap} and \opt{twist}) next to each other; the starred
 form leaves out \opt{id}.
 
 \section{The features}
@@ -180,7 +182,18 @@ into its outputs with a tree of \opt{pant}s, and finally the outputs are
 permuted into place. Components with no inputs start with a \opt{unit},
 components without outputs end with a \opt{counit}, and the two kinds of
 cylinders that bend back (two inputs or two outputs, genus~0) become
-\opt{pair} and \opt{copair}.
+\opt{pair} and \opt{copair}. The permutations are made of \opt{swap}s; the
+key \opt{crossing} (\opt{swap}, \opt{iswap} or \opt{twist}) chooses another
+crossing.
+
+\begin{code}
+\[ \PL{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id}
+   = \PL[reduce, crossing=twist]{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id} \]
+\end{code}
+\begin{result}
+  \( \PL{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id}
+     = \PL[reduce, crossing=twist]{2,3}{pant, id}\PL{3,3}{id, twist}\PL{3,3}{twist, id} \)
+\end{result}
 
 \begin{code}
 \[ \PL{1,3}{copair, id}\PL{3,3}{swap, id}\PL{3,2}{id, copant}
