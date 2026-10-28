@@ -319,6 +319,8 @@
     tikz .code:n = \tl_put_right:Nn \l__plumber_tikz_tl { , #1 } ,
     fill .code:n =
       \tikzset { pl~surface/.append~style = { fill = #1 } } ,
+    opacity .code:n =
+      \tikzset { pl~surface/.append~style = { fill~opacity = #1 } } ,
     surface~style .code:n =
       \tikzset { pl~surface/.append~style = {#1} } ,
     outline~style .code:n =
@@ -808,7 +810,7 @@
 % ---------------------------------------------------------------------------
 % Generators.  The layer occupies ta <= t <= tb; pa, pb are the positions of
 % the input circles and qa, qb those of the output circles (in cm).  Points
-% are computed once (\__plumber_point:nnn) and then used both for the white
+% are computed once (\__plumber_point:nnn) and then used both for the filled
 % surface and for the outline.
 % ---------------------------------------------------------------------------
 \cs_new:Npn \__plumber_R: { \l__plumber_R_fp }
@@ -2145,7 +2147,7 @@
 % ---------------------------------------------------------------------------
 \ExplSyntaxOff
 \tikzset{
-  pl surface/.style={fill=white},
+  pl surface/.style={fill=white, fill opacity=0},
   pl outline/.style={line width=0.6pt, line cap=round, line join=round},
   pl boundary/.style={line width=0.6pt},
   pl seam/.style={line width=0.4pt},

@@ -287,11 +287,17 @@ takes a key--value list of generator names and math material.
   \opt{baseline}    & \opt{-0.5ex}& vertical alignment, as in TikZ \\
   \opt{tikz}        &             & further options for the \texttt{tikzpicture} \\
   \opt{fill}        & \opt{white} & colour of the surface \\
+  \opt{opacity}     & \opt{0}     & opacity of the surface, from \opt{0} (transparent) to \opt{1} (opaque) \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-The drawing uses the TikZ styles \opt{pl surface} (the white area of every
+By default the surface is fully transparent, so only the outlines are drawn
+and tubes that pass behind others stay visible. Set \opt{opacity} to a value
+up to \opt{1} to show the \opt{fill} colour; with \opt{opacity=1} a tube in
+front hides the outlines behind it.
+
+The drawing uses the TikZ styles \opt{pl surface} (the filled area of every
 piece), \opt{pl outline}, \opt{pl boundary} (whole circles), \opt{pl seam}
 (front half of a seam), \opt{pl hidden} (its dashed back half), \opt{pl name},
 \opt{pl name right}, \opt{pl separator}, \opt{pl coefficient} and
@@ -300,12 +306,12 @@ piece), \opt{pl outline}, \opt{pl boundary} (whole circles), \opt{pl seam}
 corresponding styles.
 
 \begin{code}
-\PL[fill=blue!10, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}
+\PL[fill=blue!10, opacity=1, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}
 \PL[seams=false, outline style={thick, blue!60!black}]{1,2}{pant}\PL{2,1}{copant}
 \PL[hidden style={densely dotted}, scale=0.7]{1,2}{pant}\PL{2,1}{copant}
 \end{code}
 \begin{result}
-  \PL[fill=blue!10, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}\qquad
+  \PL[fill=blue!10, opacity=1, length=0.8, circle sep=0.8, radius=0.25]{1,2}{pant}\PL{2,1}{copant}\qquad
   \PL[seams=false, outline style={thick, blue!60!black}]{1,2}{pant}\PL{2,1}{copant}\qquad
   \PL[hidden style={densely dotted}, scale=0.7]{1,2}{pant}\PL{2,1}{copant}
 \end{result}

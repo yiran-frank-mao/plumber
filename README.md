@@ -39,7 +39,7 @@ half.
   `symbols={pant=m^*, ...}` changes the symbols. `\PLgenerators[names]` draws all generators.
 - **Standalone pictures**: with `\documentclass[tikz]{standalone}`, every `\[...\]` or `\(...\)`
   that contains diagrams becomes one cropped page.
-- **Appearance**: `circle sep`, `radius`, `length`, `perspective`, `crotch`, `scale`, `fill`, `seams`,
+- **Appearance**: `circle sep`, `radius`, `length`, `perspective`, `crotch`, `scale`, `fill`, `opacity` (the surface is transparent by default), `seams`,
   `outline style`, `hidden style`, … and TikZ styles (`pl surface`, `pl outline`, `pl seam`,
   `pl hidden`, …).
 
